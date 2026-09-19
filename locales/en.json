@@ -1,0 +1,16 @@
+{
+  "language": "English",
+  "prompt": {
+    "title_locked": "Door: Locked",
+    "title_unlocked": "Door: Unlocked",
+    "lock": "Lock",
+    "unlock": "Unlock"
+  },
+  "progress": {
+    "lock": "Locking the door",
+    "unlock": "Unlocking the door"
+  },
+  "notify": {
+    "no_access": "You don't have a key for this door"
+  }
+}

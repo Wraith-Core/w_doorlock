@@ -1,0 +1,16 @@
+{
+  "language": "العربية",
+  "prompt": {
+    "title_locked": "الباب: مقفل",
+    "title_unlocked": "الباب: مفتوح",
+    "lock": "إقفال",
+    "unlock": "فتح"
+  },
+  "progress": {
+    "lock": "جارٍ إقفال الباب",
+    "unlock": "جارٍ فتح الباب"
+  },
+  "notify": {
+    "no_access": "لا تملك مفتاح هذا الباب"
+  }
+}
