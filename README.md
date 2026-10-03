@@ -1,6 +1,126 @@
-# w_doorlock
-Doorlock Handler for Wraith Core RedM
+# w_doorlock — أقفال الأبواب
 
-- Built on w_lib 4.0: one library proximity prompt per door (`w.prompt.at`, lock / unlock label and title following the door state), the lock animation (`w.progressBar` with the key prop), callbacks and notifications.
-- Language follows the library (`w_lib:locale` convar / the player's `/w_lib` choice): `locales/en.json` and `locales/ar.json` hold every player-facing string.
-- Door lists live in `shared/sh_doors.lua` (see `EXAMPLES.lua`); the prompt key, hold time and position in `shared/sh_config.lua`.
+كلّ بابٍ في السيرفر يُقفل ويُفتح ويُفكّ ويُعدَّل من داخل اللعبة. مبنيّ كلّه على `w_lib`،
+وواجهته **لوحة بطاقات الورق الممزّق نفسها في قائمة الإيقاف** (w_pausemenu): الخطوط نفسها
+(EB Garamond وAmiri وLalezar وTajawal وRDR Lino)، وحافّة الورق وحبيبته، وشريط اللعبة الأبيض
+تحت المؤشّر، وأحمرٌ واحد علامةً فقط، وأصوات قوائم اللعبة نفسها. العربيّة أوّلًا: اللوحة على اليمين
+وكلّ شيءٍ ينعكس، ولغتها لغة `w_lib` (‏`setr w_lib:locale` واختيار كلّ لاعب من `/w_lib`).
+
+مأخوذ عن ox_doorlock (Overextended، رخصة GPL-3.0) بعد تحويله كاملًا: لا ox_lib ولا jo_libs ولا
+ox_inventory ولا ox_target ولا rsg-core ولا oxmysql مباشرةً.
+
+## ما يراه اللاعب
+
+- **عند الباب**: مجموعة تلميحات المكتبة (`w.prompt.at`) — عنوانها «الباب: مقفل / مفتوح» ومفتاحها
+  **E** «فتح / إقفال»، يتبدّلان مع حالة الباب ولغة اللاعب. وعلى الباب القابل للفكّ، ومع أداة فكّ
+  في الحقيبة، يظهر **G** «فكّ القفل».
+- **المفتاح في اليد**: حركة إدارة المفتاح في القفل (‏`Config.Animation`).
+- **الرمز**: الباب ذو الرمز يفتح ورقةً يُكتب فيها الرمز؛ الرمز لا يغادر السيرفر أبدًا،
+  وخمسة رموز خاطئة في دقيقة توقف اللاعب دقيقة.
+- **فكّ القفل**: إبرةٌ حمراء تدور على قرص؛ اضغط **E** (أو Space / Enter / النقر / A في يد التحكّم)
+  حين تعبر العلامة البيضاء، جولةً بعد جولة. ‏Esc / Backspace تراجع. السيرفر يقرّر الكسر.
+- **صوت الباب** يُسمع لمن حوله بحسب البعد (ملفّات `web/public/sounds`).
+
+## لوحة الإدارة — `/doorlock`
+
+| الأمر | ما يفعل |
+|---|---|
+| `/doorlock` | يفتح اللوحة: كلّ الأبواب بحالتها ورقمها ومنطقتها، بحثٌ وصفحات |
+| `/doorlock closest` | يفتح اللوحة على الباب الذي تقف عنده مباشرةً |
+
+- **باب جديد**: املأ الإعدادات ثمّ «اختيار الباب»؛ تتنحّى اللوحة، انظر إلى الباب واضغط **E**
+  (ولكلّ درفةٍ من الباب المزدوج)، و**Backspace** يتراجع عن آخر درفة أو يُلغي. ثمّ تعود اللوحة.
+- **تعديل** باب: خمسة تبويبات — عام (الاسم، الرمز، الإقفال الذاتيّ، المدى، سرعة الحركة، الصوتان،
+  مقفل / مزدوج / آليّ / يمكن فكّه / بلا تلميح / يبقى مفتوحًا)، الشخصيّات، المجموعات (وظيفة أو عصابة
+  من رتبة)، الأغراض (مفتاح، نوع البيانات، يُستهلك)، فكّ القفل (جولات سهلة / متوسّطة / صعبة / مخصّصة).
+- **نسخ / لصق** الإعدادات بين الأبواب، **انتقال** إلى الباب، **حذف** بعد تأكيدٍ على ورقة.
+- التنقّل: الأسهم وWASD والفأرة ويد التحكّم؛ Enter يكتب في الحقل أو يضغط ما عليه المؤشّر؛
+  Q / E (أو LB / RB) تقلب الصفحة أو التبويب؛ Esc / Backspace رجوع. أزرار «اختيار / رجوع» هي
+  مجموعة تلميحات المكتبة في الزاوية التي تتركها اللوحة.
+
+الصلاحيّة عقدة ACE واحدة تُفحص على السيرفر عبر `exports.w_lib:HasPermissionNode` (والإدارة الكاملة
+تمرّ وحدها):
+
+```
+add_ace group.staff w_doorlock.admin allow
+```
+
+## من يفتح الباب
+
+قواعد ox_doorlock نفسها، بالترتيب:
+
+1. `Config.AdminBypass` مع صلاحيّة اللوحة، أو ACE الباب باسمه: `add_ace group.police "w_doorlock.door.<الاسم>" allow`
+2. شخصيّة مسجّلة على الباب (رقم المواطن)
+3. مجموعة: الوظيفة أو العصابة من رتبةٍ فما فوق — وإلّا غرضٌ من أغراض الباب (والمستهلَك يُؤخذ)
+4. الباب ذو الرمز يطلبه: وحده إن لم يكن على الباب غيره، وبعد المجموعة / الغرض إن كانا.
+
+بابٌ بلا أيّ قاعدة لا يفتحه إلّا الإدارة والـACE. والسيرفر يتحقّق أنّ اللاعب واقفٌ عند الباب.
+
+## كلّ الأنظمة
+
+كلّ ما يخصّ اللاعب يمرّ بجسور `w_lib` وحدها (`server/bridge.lua`):
+
+- **النواة**: `w.framework` — Wraith Core وVORP وRSG (1 و2) وQBR وQR وRedEM:RP وRPX وTPZ وFRP
+  (الوظيفة والرتبة ورقم الشخصيّة؛ والعصابة حيث تعرفها النواة).
+- **الحقيبة**: `exports.w_lib:InvGetItemCount / InvRemoveItem` — w_inventory وvorp_inventory
+  وrsg-inventory وqbr-inventory (نوع البيانات النصّيّ للغرض يُقرأ `metadata.type` كما كان في ox).
+- **القاعدة**: `exports.w_lib:Db*` — لا سطر oxmysql في المانيفست.
+- **الواجهة**: `w.prompt` للتلميحات، `w.notify` للإشعارات، `w.callback` للنداءات، `w.addCommand` للأمر.
+
+## الإعداد — `shared/config.lua`
+
+| المفتاح | المعنى |
+|---|---|
+| `Command` / `Permission` / `AdminBypass` | الأمر، عقدة الصلاحيّة، وهل تفتح الإدارة كلّ باب |
+| `Prompt` | مفتاح الفتح (E) ومفتاح الفكّ (G) والضغط المطوّل وموضع التلميح |
+| `Animation` | حركة المفتاح في اليد |
+| `Lockpick` | أغراض الفكّ، الجولات الافتراضيّة، فكّ الباب المفتوح، نسبتا الكسر |
+| `DoorSounds` / `DefaultSound` / `SoundVolume` | أصوات الأبواب (ملفّ `.ogg` + اسمه هنا) |
+| `UnlockedDoors` | أبوابٌ تقفلها اللعبة وتبقى مفتوحة للجميع (المتاجر والبنوك) |
+| `Effect` / `Sounds` | مؤثّر الشاشة وأصوات اللوحة — أزواج قائمة الإيقاف نفسها |
+
+## القاعدة والانتقال
+
+- جدول واحد `w_doorlock` (id, name, data) يُنشأ عند أوّل تشغيل.
+- إن وُجد جدول `ox_doorlock` قديم يُنسخ إليه **مرّةً واحدة** بأرقامه.
+- أبواب `w_doorlock` السابق (ملفّ `shared/sh_doors.lua` هناك: 28 بابًا لمكاتب الشريف في فالنتاين
+  ورودز وبلاك ووتر وسترو بيري وسانت دينيس) محوّلةٌ في `data/legacy.lua` وتُضاف **مرّةً واحدة**،
+  ويُتخطّى أيّ بابٍ موجودٍ بالفعل. بعدها هي أبوابٌ عاديّة في اللوحة، والمحذوف لا يعود.
+
+## للمطوّرين
+
+**السيرفر**
+
+```lua
+exports.w_doorlock:getDoor(id)            -- { id, name, state, coords, characters, groups, items, maxDistance }
+exports.w_doorlock:getAllDoors()
+exports.w_doorlock:getDoorFromName(name)
+exports.w_doorlock:setDoorState(id, true) -- true / 1 مقفل، false / 0 مفتوح (بلا قواعد: السكربت يقرّر)
+exports.w_doorlock:editDoor(id, { maxDistance = 3.0, passcode = '' })   -- '' يمسح الحقل
+
+AddEventHandler('w_doorlock:stateChanged', function(source, doorId, locked, usedItem) end)
+AddEventHandler('w_doorlock:loaded', function() end)
+```
+
+**العميل**
+
+```lua
+exports.w_doorlock:useClosestDoor()
+exports.w_doorlock:pickClosestDoor()
+exports.w_doorlock:getClosestDoor()
+exports.w_doorlock:getClosestDoorId()
+exports.w_doorlock:getDoorIdFromEntity(entity)
+```
+
+أسماء ox_doorlock نفسها: سكربتٌ كُتب له يكفيه تغيير اسم المورد.
+
+**الواجهة** (`web/`، React + Vite، أدوات قائمة الإيقاف نفسها):
+
+```
+cd web
+npm ci
+npm run build      # يكتب web/build — وهو ما يقدّمه المانيفست، فيُرفع مع التعديل
+npm run dev        # ثمّ dev.html?lang=ar&show=board|passcode|pick للعمل خارج اللعبة
+```
+
+التشخيص: `setr w_lib:printlevel:w_doorlock debug`.
