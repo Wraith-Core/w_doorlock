@@ -1,6 +1,6 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- w_doorlock · client/interact.lua
--- The player at a door: the library's walk-up prompt (w.prompt.at) on every door within reach -
+-- The player at a door: the walk-up prompt (WDoorPrompt.at, client/walkup.lua) on every door in reach -
 -- its title and its key follow the door's state and the player's language - the code note, the
 -- lock pick, the key turning in the lock, and the client exports.
 --
@@ -15,7 +15,7 @@ local Prompt = Config.Prompt or {}
 local KEY = tostring(Prompt.key or 'E'):upper()
 local PICK_KEY = tostring(Prompt.pickKey or 'G'):upper()
 
-local records = {}       -- [door id] = the w.prompt.at record
+local records = {}       -- [door id] = the WDoorPrompt.at record
 local busy = false
 local carryPick = { value = false, at = -60000, asking = false }
 
@@ -194,7 +194,7 @@ end
 
 local function create(d)
     local id = d.id
-    local rec = w.prompt.at({
+    local rec = WDoorPrompt.at({
         coords = d.coords,
         distance = d.maxDistance,
         title = locale(d.state == 1 and 'prompt.locked' or 'prompt.unlocked'),

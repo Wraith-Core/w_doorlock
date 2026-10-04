@@ -7,7 +7,7 @@ name 'w_doorlock'
 author 'Wraith Studio'
 version '2.0.0'
 license 'GPL-3.0-or-later'
-description "Wraith Doorlock -- every door locked, opened, picked and edited in the game (/doorlock), on the pause menu's torn-paper board. Built on w_lib; a port of ox_doorlock (Overextended, GPL-3.0)"
+description "Red River Doorlock -- every door locked, opened, picked and edited in the game (/doorlock), on the pause menu's torn-paper board. Built on w_lib; a port of ox_doorlock (Overextended, GPL-3.0)"
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- What runs where
@@ -21,7 +21,8 @@ description "Wraith Doorlock -- every door locked, opened, picked and edited in 
 -- ★ No ox_lib, no jo_libs, no oxmysql line: w_lib alone (it loads oxmysql for its Db* exports).
 -- ★ The page is our own (web/build), so the library's own frame (w.minigame, w.promptNui) is not
 --   ours to draw in: the lock pick is drawn by our page, the prompts by w_lib's frame through
---   its exports (w.prompt.at / w.prompt.createGroup), the notices by w.notify.
+--   its exports (w.prompt.at / w.prompt.createGroup; client/walkup.lua stands in for w.prompt.at
+--   on a w_lib without it), the notices by w.notify.
 -- ════════════════════════════════════════════════════════════════════════════
 
 shared_scripts {
@@ -36,6 +37,7 @@ client_scripts {
     'client/sound.lua',     -- the board's sounds: the game's own menu sounds (the pause menu's pairs)
     'client/nui.lua',       -- the page: one surface at a time, the key hints, the notices, the language
     'client/doors.lua',     -- the doors in the game's door system, their sounds, who is near
+    'client/walkup.lua',    -- the walk-up prompt: the library's w.prompt.at, or our own on w_lib 3.x
     'client/interact.lua',  -- the prompt on each door, the code, the lock pick, the client exports
     'client/board.lua',     -- the staff's board, and choosing a new door in the world
 }
