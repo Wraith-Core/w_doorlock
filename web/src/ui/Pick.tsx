@@ -1,19 +1,20 @@
 /* ════════════════════════════════════════════════════════════════════════════
- * The lock pick - a skill check on a torn card: one round per difficulty the door sets, ox_lib's
- * presets (easy / medium / hard, or a door's own size and speed).
+ * The lock pick - a skill check on a torn card: one round per difficulty the door sets.
  *
  * The needle (the red mark) sweeps the dial once; E (or Space, Enter, a click, the pad's A) while it
  * crosses the paper mark wins the round. A press off the mark, or a full sweep with no press, loses.
- * Escape / Backspace / the pad's B gives up. The page only reports: the server decides what the
- * door does and whether the pick breaks.
+ * Escape / Backspace / the pad's B gives up.
+ *
+ * The zone and the sweep speed are the SERVER's: the page is only told where to draw the mark, and
+ * every press goes straight back to Lua to be measured against that zone. Nothing this page draws,
+ * and nothing it says about itself, decides a round - the server does, and it does it per press.
  * ════════════════════════════════════════════════════════════════════════════ */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { presetOf } from '../door';
 import { cls, useI18n } from '../i18n';
 import { startPad } from '../nav';
 import { cue, post } from '../nui';
-import type { Difficulty } from '../types';
+import type { PickRound } from '../types';
 import { IconPick } from './icons';
 
 const R = 42;
@@ -32,13 +33,17 @@ function arc(from: number, size: number) {
   return `M ${a.x.toFixed(3)} ${a.y.toFixed(3)} A ${R} ${R} 0 ${size > 180 ? 1 : 0} 1 ${b.x.toFixed(3)} ${b.y.toFixed(3)}`;
 }
 
-export default function Pick({ rounds }: { rounds: Difficulty[] }) {
+export default function Pick({ rounds }: { rounds: PickRound[] }) {
   const { t, rtl, lang } = useI18n();
-  const list = useMemo(() => (rounds.length ? rounds : ['medium' as Difficulty]).map(presetOf), [rounds]);
+  // the server never sends an empty plan, but the page must not crash if it ever does
+  const list = useMemo<PickRound[]>(
+    () => (rounds.length ? rounds : [{ from: 120, areaSize: 40, speedMultiplier: 1 }]),
+    [rounds],
+  );
 
   const [round, setRound] = useState(0);
   const [phase, setPhase] = useState<Phase>('spin');
-  const [zone, setZone] = useState(() => ({ from: 120 + Math.random() * 150, size: list[0].areaSize }));
+  const [zone, setZone] = useState(() => ({ from: list[0].from, size: list[0].areaSize }));
   const needle = useRef<SVGLineElement>(null);
 
   const angle = useRef(0);
@@ -50,6 +55,7 @@ export default function Pick({ rounds }: { rounds: Difficulty[] }) {
   const zoneRef = useRef(zone);
   zoneRef.current = zone;
   const finished = useRef(false);
+  const asking = useRef(false);   // a press is with the server: ignore any other until it answers
 
   const report = (result: 'success' | 'fail' | 'cancel') => {
     if (finished.current) return;
@@ -59,9 +65,8 @@ export default function Pick({ rounds }: { rounds: Difficulty[] }) {
 
   const startRound = (i: number) => {
     const preset = list[i];
-    // the mark never sits at the very start of the sweep: there is always a moment to see it coming
-    const from = 100 + Math.random() * Math.max(10, 240 - preset.areaSize);
-    setZone({ from, size: preset.areaSize });
+    // the mark is where the server put it
+    setZone({ from: preset.from, size: preset.areaSize });
     setRound(i);
     angle.current = 0;
     started.current = performance.now();
@@ -75,15 +80,28 @@ export default function Pick({ rounds }: { rounds: Difficulty[] }) {
     window.setTimeout(() => report('fail'), 650);
   };
 
-  const press = () => {
-    if (phaseRef.current !== 'spin') return;
+  /** The press: the angle goes to the server and the server alone says whether the round was won */
+  const press = async () => {
+    if (phaseRef.current !== 'spin' || asking.current) return;
     if (performance.now() - started.current < 180) return;   // the press that opened the pick
-    const { from, size } = zoneRef.current;
+    asking.current = true;
+    const index = roundRef.current;
     const a = angle.current;
-    if (a >= from && a <= from + size) {
+    let hit = false;
+    try {
+      const res = await post<{ hit?: boolean }>('dl:pickPress', { round: index, angle: a });
+      hit = res?.hit === true;
+    } catch {
+      hit = false;
+    }
+    // the sweep may have finished while the server was answering
+    if (phaseRef.current !== 'spin') { asking.current = false; return; }
+    asking.current = false;
+
+    if (hit) {
       setPhase('hit');
       cue('select');
-      const next = roundRef.current + 1;
+      const next = index + 1;
       if (next >= list.length) {
         window.setTimeout(() => { setPhase('won'); window.setTimeout(() => report('success'), 450); }, 250);
       } else {

@@ -290,21 +290,41 @@ end)
 
 local picking = {}  -- [src] = { id, token, at, rounds }
 
-local DIFFICULTIES = { easy = true, medium = true, hard = true }
+-- ox_lib's skill-check presets - the lock pick plays them the same way (web/src/door.ts PRESETS)
+local PRESETS = {
+    easy = { areaSize = 50, speedMultiplier = 1 },
+    medium = { areaSize = 40, speedMultiplier = 1.5 },
+    hard = { areaSize = 25, speedMultiplier = 1.75 },
+}
 
+-- The page is told where the mark sits and how fast the needle runs, and it is told nothing else:
+-- it cannot draw a wider zone than the one below, and its own verdict is never asked for.
 local function pickRounds(door)
     local list = type(door.lockpickDifficulty) == 'table' and #door.lockpickDifficulty > 0 and door.lockpickDifficulty
         or Config.Lockpick.difficulty
     local rounds = {}
     for i = 1, math.min(#list, 10) do
         local r = list[i]
-        if type(r) == 'string' and DIFFICULTIES[r] then
-            rounds[#rounds + 1] = r
+        local preset
+        if type(r) == 'string' and PRESETS[r] then
+            preset = PRESETS[r]
         elseif type(r) == 'table' and tonumber(r.areaSize) and tonumber(r.speedMultiplier) then
-            rounds[#rounds + 1] = { areaSize = tonumber(r.areaSize), speedMultiplier = tonumber(r.speedMultiplier) }
+            preset = { areaSize = tonumber(r.areaSize), speedMultiplier = tonumber(r.speedMultiplier) }
+        end
+        if preset then
+            -- the same clamps the page applies, so the zone sent and the zone drawn always agree
+            local size = math.min(180, math.max(5, tonumber(preset.areaSize) or 40))
+            rounds[#rounds + 1] = {
+                areaSize = size,
+                speedMultiplier = math.min(5, math.max(0.1, tonumber(preset.speedMultiplier) or 1)),
+                -- the mark never sits at the very start of the sweep: there is always a moment to see it coming
+                from = 100 + math.random() * math.max(10, 240 - size),
+            }
         end
     end
-    if #rounds == 0 then rounds[1] = 'medium' end
+    if #rounds == 0 then
+        rounds[1] = { areaSize = 40, speedMultiplier = 1.5, from = 100 + math.random() * 200 }
+    end
     return rounds
 end
 
@@ -324,12 +344,32 @@ w.callback.register('w_doorlock:pickStart', function(src, id)
 
     local rounds = pickRounds(door)
     local token = ('%d-%d'):format(math.random(100000, 999999), GetGameTimer())
-    picking[src] = { id = door.id, token = token, at = GetGameTimer(), rounds = #rounds }
+    picking[src] = { id = door.id, token = token, at = GetGameTimer(), plan = rounds, next = 1, good = 0 }
     return token, rounds
 end)
 
---- The end of an attempt: success / failure from the page; given = the player gave up (no dice)
-w.callback.register('w_doorlock:pickFinish', function(src, token, success, given)
+--- One press, judged here and now: the angle is measured against the zone this server drew, so a page
+--- that paints a wide mark, or one that simply claims a win, earns nothing.
+w.callback.register('w_doorlock:pickPress', function(src, token, round, angle)
+    local attempt = picking[src]
+    if not attempt or attempt.token ~= token then return false end
+    local index = tonumber(round)
+    local plan = index and attempt.plan[index]
+    -- rounds are judged in order, and only once each
+    if not plan or index ~= attempt.next then return false end
+    local a = tonumber(angle)
+    if not a or a < 0 or a > 360 then return false end
+    local hit = a >= plan.from and a <= plan.from + plan.areaSize
+    if hit then
+        attempt.good = attempt.good + 1
+        attempt.next = attempt.next + 1
+    end
+    return hit
+end)
+
+--- The end of an attempt. Every round was already judged in pickPress, so this is told only whether the
+--- player gave up; the page's own "success" is not a parameter and is never read.
+w.callback.register('w_doorlock:pickFinish', function(src, token, given)
     local attempt = picking[src]
     picking[src] = nil
     if not attempt or attempt.token ~= token then return false end
@@ -337,10 +377,11 @@ w.callback.register('w_doorlock:pickFinish', function(src, token, success, given
 
     local door = Doors[attempt.id]
     if not door or not canPick(door) then return false end
+    if not nearDoor(src, door) then return false end
 
-    -- a round takes at least a moment: an answer faster than the rounds can be played is not believed
-    if success and GetGameTimer() - attempt.at < attempt.rounds * 350 then success = false end
-    if success and not nearDoor(src, door) then success = false end
+    -- every round drawn, and not faster than the rounds can be played
+    local success = attempt.good >= #attempt.plan
+    if success and GetGameTimer() - attempt.at < #attempt.plan * 350 then success = false end
 
     local pick = Bridge.findItem(src, Config.Lockpick.items)
     if not pick then return false end

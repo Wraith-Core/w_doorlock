@@ -8,6 +8,9 @@ export interface Vec3 { x: number; y: number; z: number }
 /** A round of the lock pick: a preset, or its own target size (degrees) and speed */
 export type Difficulty = 'easy' | 'medium' | 'hard' | { areaSize: number; speedMultiplier: number };
 
+/** A round as the server draws it: the zone and the speed are the server's, and it alone judges a press */
+export interface PickRound { from: number; areaSize: number; speedMultiplier: number }
+
 export interface DoorItem { name: string; metadata?: string; remove?: boolean }
 
 export interface DoorLeaf { coords: Vec3; heading?: number; model?: number; hash?: number }

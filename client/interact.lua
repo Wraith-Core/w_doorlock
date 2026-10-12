@@ -148,14 +148,17 @@ local function pickDoor(d)
         TaskPlayAnim(ped, PICK_DICT, PICK_CLIP, 3.0, -3.0, -1, 31, 0, false, false, false)
     end
 
+    -- the page judges each press against the server (client/nui.lua 'dl:pickPress'); it is handed the
+    -- token so its reports belong to this attempt, and the server never hears a verdict from the page
+    WDoor.Nui.pickToken = token
     local result = WDoor.Nui.ask('pick', { action = 'dl:pick', rounds = rounds })
+    WDoor.Nui.pickToken = nil
 
     StopAnimTask(ped, PICK_DICT, PICK_CLIP, 1.0)
     RemoveAnimDict(PICK_DICT)
 
-    local success = result == 'success'
     local given = result ~= 'success' and result ~= 'fail'
-    local done, broke = w.callback.await('w_doorlock:pickFinish', false, token, success, given)
+    local done, broke = w.callback.await('w_doorlock:pickFinish', false, token, given)
 
     if broke then
         WDoor.notify('notify.lockpick_broke', 'error')

@@ -14,7 +14,7 @@
 -- ════════════════════════════════════════════════════════════════════════════
 WDoor = WDoor or {}
 
-local Nui = { surface = nil }
+local Nui = { surface = nil, pickToken = nil }   -- pickToken: the attempt a page's presses belong to
 WDoor.Nui = Nui
 
 local pending = nil      -- { surface, promise } while a passcode note or a pick waits for the page
@@ -109,6 +109,7 @@ end
 function Nui.hide(surface, silent)
     if Nui.surface ~= surface then return end
     Nui.surface = nil
+    if surface == 'pick' then Nui.pickToken = nil end
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'dl:close', surface = surface })
     if not silent and surface ~= 'pick' then WDoorSound.play('close') end
@@ -165,6 +166,14 @@ RegisterNUICallback('dl:pick', function(data, cb)
     local result = data and data.result
     if result ~= 'success' and result ~= 'fail' then result = 'cancel' end
     Nui.answer('pick', result)
+end)
+
+--- One press, sent the instant it happens. The server holds the zone, so it measures the angle itself
+--- and hands back the only thing the page is allowed to act on: whether the round was won.
+RegisterNUICallback('dl:pickPress', function(data, cb)
+    local ok, hit = pcall(w.callback.await, 'w_doorlock:pickPress', false,
+        Nui.pickToken, tonumber(data and data.round), tonumber(data and data.angle))
+    cb({ ok = true, hit = ok and hit == true })
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════

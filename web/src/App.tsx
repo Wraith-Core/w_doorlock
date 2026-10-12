@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Board from './board/Board';
 import { I18nContext, translate, type I18n } from './i18n';
 import { post } from './nui';
-import type { BoardOpen, BoardResume, Difficulty, Door, Lang, Strings } from './types';
+import type { BoardOpen, BoardResume, Door, Lang, PickRound, Strings } from './types';
 import { CodeNote } from './ui/Note';
 import Pick from './ui/Pick';
 
@@ -26,7 +26,7 @@ export default function App() {
   const [surface, setSurface] = useState<Surface | null>(null);
   const [board, setBoard] = useState<BoardOpen | null>(null);
   const [resume, setResume] = useState<BoardResume | null>(null);
-  const [rounds, setRounds] = useState<Difficulty[]>([]);
+  const [rounds, setRounds] = useState<PickRound[]>([]);
   const [round, setRoundKey] = useState(0);
 
   const applyLocale = useCallback((l: Lang, isRtl: boolean) => {
@@ -64,7 +64,7 @@ export default function App() {
           setSurface('passcode');
           return;
         case 'dl:pick':
-          setRounds(Array.isArray(d.rounds) ? (d.rounds as Difficulty[]) : []);
+          setRounds(Array.isArray(d.rounds) ? (d.rounds as PickRound[]) : []);
           setRoundKey((n) => n + 1);
           setSurface('pick');
           return;
