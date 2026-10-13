@@ -171,8 +171,10 @@ end)
 --- One press, sent the instant it happens. The server holds the zone, so it measures the angle itself
 --- and hands back the only thing the page is allowed to act on: whether the round was won.
 RegisterNUICallback('dl:pickPress', function(data, cb)
+    -- the page counts its rounds from 0, the server's plan from 1 (Lua): the +1 is the bridge between them
+    local round = tonumber(data and data.round)
     local ok, hit = pcall(w.callback.await, 'w_doorlock:pickPress', false,
-        Nui.pickToken, tonumber(data and data.round), tonumber(data and data.angle))
+        Nui.pickToken, round and round + 1, tonumber(data and data.angle))
     cb({ ok = true, hit = ok and hit == true })
 end)
 

@@ -344,25 +344,40 @@ w.callback.register('w_doorlock:pickStart', function(src, id)
 
     local rounds = pickRounds(door)
     local token = ('%d-%d'):format(math.random(100000, 999999), GetGameTimer())
-    picking[src] = { id = door.id, token = token, at = GetGameTimer(), plan = rounds, next = 1, good = 0 }
+    local now = GetGameTimer()
+    picking[src] = { id = door.id, token = token, at = now, roundAt = now, plan = rounds, next = 1, good = 0 }
     return token, rounds
 end)
+
+-- The page's needle: one full turn in PICK_SWEEP_MS at speed 1 (web/src/ui/Pick.tsx BASE_SWEEP).
+local PICK_SWEEP_MS = 2300
 
 --- One press, judged here and now: the angle is measured against the zone this server drew, so a page
 --- that paints a wide mark, or one that simply claims a win, earns nothing.
 w.callback.register('w_doorlock:pickPress', function(src, token, round, angle)
     local attempt = picking[src]
-    if not attempt or attempt.token ~= token then return false end
+    if not attempt or attempt.token ~= token or attempt.missed then return false end
     local index = tonumber(round)
     local plan = index and attempt.plan[index]
     -- rounds are judged in order, and only once each
     if not plan or index ~= attempt.next then return false end
     local a = tonumber(angle)
-    if not a or a < 0 or a > 360 then return false end
+    if not a or a ~= a or a < 0 or a > 360 then attempt.missed = true return false end
+    -- ★ The needle cannot be at `a` before it had the time to turn there. The server's clock for the
+    --   round starts when it answered the previous press (or handed out the token), which is always
+    --   before the page restarts its own sweep, so an honest press is never early; a client that
+    --   answers with the zone the instant the round opens is.
+    local needed = a / 360 * (PICK_SWEEP_MS / (plan.speedMultiplier or 1))
     local hit = a >= plan.from and a <= plan.from + plan.areaSize
+        and (GetGameTimer() - attempt.roundAt) + 150 >= needed
     if hit then
         attempt.good = attempt.good + 1
         attempt.next = attempt.next + 1
+        attempt.roundAt = GetGameTimer()
+    else
+        -- ★ A miss ends the attempt, as it does on the page: no second try at the same round, so the
+        --   zone cannot be searched for by pressing again and again
+        attempt.missed = true
     end
     return hit
 end)
@@ -373,7 +388,8 @@ w.callback.register('w_doorlock:pickFinish', function(src, token, given)
     local attempt = picking[src]
     picking[src] = nil
     if not attempt or attempt.token ~= token then return false end
-    if given then return false end
+    -- giving up is free only before a miss: a miss already happened, and its break chance is owed
+    if given and not attempt.missed then return false end
 
     local door = Doors[attempt.id]
     if not door or not canPick(door) then return false end
