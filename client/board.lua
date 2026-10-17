@@ -80,12 +80,12 @@ local function chooseDoors(count)
 
     local hints = w.prompt.createGroup(locale(count == 2 and 'select.title_double' or 'select.title'),
         WDoor.Nui.lang() == 'ar' and 'bottom-left' or 'bottom-right')
-    hints.addPrompt('E', locale('select.pick'), false)
+    hints.addPrompt('J', locale('select.pick'), false)
     hints.addPrompt('BACK', locale('select.back'), false)
     hints.display()
 
     local listeners = {
-        w.rawKeys.listen('E', function(down) if down then pressed.pick = true end end),
+        w.rawKeys.listen('J', function(down) if down then pressed.pick = true end end),
         w.rawKeys.listen('BACK', function(down) if down then pressed.back = true end end),
     }
 

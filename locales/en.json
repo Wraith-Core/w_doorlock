@@ -61,7 +61,7 @@
   "pick": {
     "kicker": "Lock pick",
     "title": "Pick the lock",
-    "hint": "Press E as the needle crosses the mark",
+    "hint": "Press J as the needle crosses the mark",
     "hit": "It gives...",
     "miss": "The pick slipped",
     "won": "The lock turns"

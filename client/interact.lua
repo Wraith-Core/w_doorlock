@@ -12,7 +12,7 @@
 WDoor = WDoor or {}
 
 local Prompt = Config.Prompt or {}
-local KEY = tostring(Prompt.key or 'E'):upper()
+local KEY = tostring(Prompt.key or 'J'):upper()
 local PICK_KEY = tostring(Prompt.pickKey or 'G'):upper()
 
 local records = {}       -- [door id] = the WDoorPrompt.at record

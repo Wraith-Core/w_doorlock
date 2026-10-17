@@ -7,7 +7,7 @@
 --
 --   local rec = WDoorPrompt.at({
 --     coords = vector3(x, y, z), distance = 2.0, title = 'Door' | false, position = 'center-left',
---     prompts = { { key = 'E', label = 'Unlock', hold = false | true | 1500, visible = true,
+--     prompts = { { key = 'J', label = 'Unlock', hold = false | true | 1500, visible = true,
 --                   onComplete = function(rec) end } },
 --     canInteract = function() return true end,   -- checked every frame
 --     onEnter = function(rec) end, onExit = function(rec) end,
@@ -28,7 +28,7 @@ local shown = nil
 local looping = false
 
 local function keyOf(key)
-    return tostring(key or 'E'):upper()
+    return tostring(key or 'J'):upper()
 end
 
 local function holdOf(hold)

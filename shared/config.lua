@@ -36,7 +36,7 @@ Config.AdminBypass = false
 --   position   'bottom-right' | 'center-right' | 'top-right' | 'bottom-left' | 'center-left' | 'top-left'
 ----------------------------------
 Config.Prompt = {
-    key      = 'E',
+    key      = 'J',
     pickKey  = 'G',
     hold     = false,
     position = 'center-left',

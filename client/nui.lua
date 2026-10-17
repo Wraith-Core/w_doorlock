@@ -49,7 +49,7 @@ end
 local HINTS = {
     board    = { { 'RETURN', 'hint.select' }, { 'BACK', 'hint.back' } },
     passcode = { { 'RETURN', 'hint.confirm' }, { 'BACK', 'hint.cancel' } },
-    pick     = { { 'E', 'hint.pick' }, { 'BACK', 'hint.give_up' } },
+    pick     = { { 'J', 'hint.pick' }, { 'BACK', 'hint.give_up' } },
 }
 
 local hints

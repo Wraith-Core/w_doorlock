@@ -134,7 +134,7 @@ export default function Pick({ rounds }: { rounds: PickRound[] }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
       switch (e.key) {
-        case 'e': case 'E': case ' ': case 'Enter': press(); break;
+        case 'j': case 'J': case ' ': case 'Enter': press(); break;
         case 'Escape': case 'Backspace':
           cue('back');
           report('cancel');
@@ -180,7 +180,7 @@ export default function Pick({ rounds }: { rounds: PickRound[] }) {
                 <line ref={needle} className="dl-dial-needle" x1="50" y1="50" x2="50" y2={50 - R - 2} />
                 <circle className="dl-dial-hub" cx="50" cy="50" r="12" />
               </svg>
-              <span className="dl-dial-key">E</span>
+              <span className="dl-dial-key">J</span>
             </div>
 
             <p className="dl-pick-say">{say}</p>
