@@ -196,17 +196,18 @@ end
 -- The board's calls
 -- ════════════════════════════════════════════════════════════════════════════
 
-w.callback.register('w_doorlock:admin:doors', function(src)
-    if not Bridge.isStaff(src) then return false end
-    while not DoorsLoaded() do Wait(100) end
+--- Every door with all its settings, by id (the board's list)
+local function boardDoors()
     local list = {}
     for _, door in pairs(Doors) do list[#list + 1] = DoorFull(door) end
     table.sort(list, function(a, b) return a.id < b.id end)
     return list
-end)
+end
 
-w.callback.register('w_doorlock:admin:save', function(src, id, form)
-    if not Bridge.isStaff(src) then return false, 'no_permission' end
+--- A door saved: a new one (id nil, its place comes with the form) or an existing one (its place stays its own).
+--- `by` names who did it on the console line.
+---@return boolean ok, table|string door or why
+local function saveDoor(id, form, by)
     if not DoorsLoaded() then return false, 'not_ready' end
 
     id = tonumber(id)
@@ -222,29 +223,127 @@ w.callback.register('w_doorlock:admin:save', function(src, id, form)
         if not newId then return false, 'db' end
         door = DoorAdd(newId, door, door.name)
         if not door then return false, 'invalid' end
-        w.print.info('%s added door %d (%s)', GetPlayerName(src) or src, newId, door.name)
+        w.print.info('%s added door %d (%s)', by, newId, door.name)
     else
         door.id = id
         door._autolockStamp = current._autolockStamp
         if not Db.update(id, door.name, DoorEncode(door)) then return false, 'db' end
         door = DoorAdd(id, door, door.name)
-        w.print.info('%s saved door %d (%s)', GetPlayerName(src) or src, id, door.name)
+        w.print.info('%s saved door %d (%s)', by, id, door.name)
     end
 
     TriggerClientEvent('w_doorlock:client:upsert', -1, DoorPublic(door))
     return true, DoorFull(door)
-end)
+end
 
-w.callback.register('w_doorlock:admin:delete', function(src, id)
-    if not Bridge.isStaff(src) then return false, 'no_permission' end
+---@return boolean ok, string|nil why
+local function deleteDoor(id, by)
     id = tonumber(id)
     local door = id and Doors[id]
     if not door then return false, 'missing' end
     if not Db.delete(id) then return false, 'db' end
     Doors[id] = nil
     TriggerClientEvent('w_doorlock:client:remove', -1, id)
-    w.print.info('%s deleted door %d (%s)', GetPlayerName(src) or src, id, door.name)
+    w.print.info('%s deleted door %d (%s)', by, id, door.name)
     return true
+end
+
+w.callback.register('w_doorlock:admin:doors', function(src)
+    if not Bridge.isStaff(src) then return false end
+    while not DoorsLoaded() do Wait(100) end
+    return boardDoors()
+end)
+
+w.callback.register('w_doorlock:admin:save', function(src, id, form)
+    if not Bridge.isStaff(src) then return false, 'no_permission' end
+    return saveDoor(id, form, GetPlayerName(src) or src)
+end)
+
+w.callback.register('w_doorlock:admin:delete', function(src, id)
+    if not Bridge.isStaff(src) then return false, 'no_permission' end
+    return deleteDoor(id, GetPlayerName(src) or src)
+end)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- The website (w_connector, 2026-10-22): the board's data ops, run by the board's own code as the
+-- console. Choosing a door in the world (a new door, its place, its leaves) stays in game. The website
+-- checked the staff member's rank (system.doors) and logs every change under their name.
+--   doors                 -> { doors = SiteDoor[], total }      read
+--   lock   { id, locked } -> { id, state }                      lock (true) or unlock (false) now
+--   edit   { id, form }   -> DoorFull                           an existing door's settings (never a new door)
+--   delete { id }         -> -
+-- ════════════════════════════════════════════════════════════════════════════
+
+local SITE_OPS = { doors = 'read', lock = 'write', edit = 'write', delete = 'write' }
+local SITE_MAX = 1000
+
+-- the settings the website may send; anything else in its form is dropped, and clean() keeps the door's
+-- own place (coords, heading, model, hash, the double door's leaves)
+local SITE_FIELDS = {
+    'name', 'passcode', 'autolock', 'maxDistance', 'doorRate', 'lockSound', 'unlockSound', 'state', 'auto',
+    'lockpick', 'hideUi', 'holdOpen', 'characters', 'groups', 'items', 'lockpickDifficulty',
+}
+
+local function round1(n) n = tonumber(n) return n and math.floor(n * 10 + 0.5) / 10 or nil end
+
+--- A board row without the place's numbers the website has no use for (a short `at` names where it is)
+local function siteRow(door)
+    local row = DoorFull(door)
+    local c = door.coords
+    row.at = c and { x = round1(c.x), y = round1(c.y), z = round1(c.z) } or nil
+    row.double = door.doors ~= nil
+    row.coords, row.doors, row.hash, row.model, row.heading = nil, nil, nil, nil, nil
+    return row
+end
+
+local SITE = {}
+
+function SITE.doors()
+    if not DoorsLoaded() then return false, 'not_ready' end
+    local ids = {}
+    for id in pairs(Doors) do ids[#ids + 1] = id end
+    table.sort(ids)
+    local rows = {}
+    for i = 1, math.min(#ids, SITE_MAX) do rows[i] = siteRow(Doors[ids[i]]) end
+    return true, { doors = rows, total = #ids }
+end
+
+function SITE.lock(args)
+    local door = Doors[tonumber(args.id)]
+    if not door then return false, 'missing' end
+    if type(args.locked) ~= 'boolean' then return false, 'invalid' end
+    DoorSetState(door, args.locked and 1 or 0)
+    return true, { id = door.id, state = door.state }
+end
+
+function SITE.edit(args, by)
+    local id = tonumber(args.id)
+    if not id or not Doors[id] then return false, 'missing' end
+    if type(args.form) ~= 'table' then return false, 'invalid' end
+    -- the door as it is, with only the settings the website sent changed ('' clears a text, [] a list)
+    local form = DoorFull(Doors[id])
+    for _, key in ipairs(SITE_FIELDS) do
+        if args.form[key] ~= nil then form[key] = args.form[key] end
+    end
+    return saveDoor(id, form, by)
+end
+
+function SITE.delete(args, by)
+    return deleteDoor(args.id, by)
+end
+
+exports('SiteAdmin', function(op, args, by)
+    if GetInvokingResource() ~= 'w_connector' then return { ok = false, error = 'forbidden' } end
+    local kind = type(op) == 'string' and SITE_OPS[op] or nil
+    if not kind then return { ok = false, error = 'unknown_action' } end
+    local who = ('%s (website)'):format(type(by) == 'string' and by ~= '' and by or 'staff')
+    local ok, done, res = pcall(SITE[op], type(args) == 'table' and args or {}, who)
+    if not ok then
+        print(('^1[w_doorlock] website op %s failed: %s^0'):format(op, tostring(done)))
+        return { ok = false, error = 'error' }
+    end
+    if not done then return { ok = false, error = type(res) == 'string' and res or 'failed' } end
+    return { ok = true, data = res, read = (kind == 'read') or nil }
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
