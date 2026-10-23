@@ -46,13 +46,12 @@ end
 -- Choosing a door in the world
 -- ════════════════════════════════════════════════════════════════════════════
 
-local DRAW_MARKER <const> = 0x2A32FAA57B937173
-local MARKER_BOX    <const> = 0x6EB7D3BB
-local MARKER_SPHERE <const> = 0x50638AB9
+-- 2.1.1 (the owner 2026-10-23): the game's glitter instead of DrawMarker (w_lib 4.1.0 w.glow.frame, look 2): a door
+-- is a big spot at its centre (a picked one in the theme's red), the aim a small one
+local RED <const> = { 203, 1, 1 }
 
-local function marker(kind, at, size, r, g, b, a)
-    Citizen.InvokeNative(DRAW_MARKER, kind, at.x, at.y, at.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        size, size, size, r, g, b, a, false, false, 0, false)
+local function marker(key, at, scale, color)
+    w.glow.frame(key, 'point', at, { look = 2, scale = scale, color = color })
 end
 
 --- The door system's hash of an entity, when the entity is a door the game knows
@@ -102,16 +101,16 @@ local function chooseDoors(count)
         local hit, entity, endCoords = w.raycast.fromCamera(1 | 16, 4, 25.0)
 
         for _, leaf in ipairs(picked) do
-            if DoesEntityExist(leaf.entity) then marker(MARKER_BOX, centreOf(leaf.entity), 0.6, 203, 1, 1, 140) end
+            if DoesEntityExist(leaf.entity) then marker('picked:' .. leaf.entity, centreOf(leaf.entity), 1.6, RED) end
         end
 
         local hash
         if hit and entity and entity ~= 0 and GetEntityType(entity) == 3
             and not WDoor.EntityDoor[entity] and not taken(entity) then
             hash = doorHashOf(entity)
-            if hash then marker(MARKER_BOX, centreOf(entity), 0.6, 242, 242, 242, 110) end
+            if hash then marker('door', centreOf(entity), 1.6) end
         end
-        if hit and endCoords then marker(MARKER_SPHERE, endCoords, 0.12, 242, 242, 242, 160) end
+        if hit and endCoords then marker('aim', endCoords, 0.5) end
 
         if pressed.pick then
             pressed.pick = false
