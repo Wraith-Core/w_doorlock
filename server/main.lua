@@ -225,6 +225,7 @@ local function authorise(src, door, code)
     return true, item
 end
 
+local operationLocks = {}
 local lastUse = {}
 local wrongCodes = {}   -- [src] = { count, since }: five wrong codes a minute, then a pause
 
@@ -246,6 +247,9 @@ end
 
 --- Lock or unlock. Answers true, 'passcode' (ask the player and call again with it), or false + why
 w.callback.register('w_doorlock:use', function(src, id, state, code)
+    if operationLocks[src] then return false, 'busy' end
+    operationLocks[src] = true
+    local packed = table.pack(pcall(function()
     local door = Doors[tonumber(id)]
     if not door then return false, 'missing' end
 
@@ -274,10 +278,14 @@ w.callback.register('w_doorlock:use', function(src, id, state, code)
     local usedItem
     if type(detail) == 'table' then
         usedItem = detail.name
-        if detail.remove then Bridge.takeItem(src, detail) end
+        if detail.remove and Bridge.takeItem(src, detail) ~= true then return false, state == 0 and 'cannot_unlock' or 'cannot_lock' end
     end
     DoorSetState(door, state, src, usedItem)
     return true
+    end))
+    operationLocks[src] = nil
+    if not packed[1] then print('[w_doorlock] Operation failed: ' .. tostring(packed[2]));return false, 'busy' end
+    return table.unpack(packed, 2, packed.n)
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -385,6 +393,9 @@ end)
 --- The end of an attempt. Every round was already judged in pickPress, so this is told only whether the
 --- player gave up; the page's own "success" is not a parameter and is never read.
 w.callback.register('w_doorlock:pickFinish', function(src, token, given)
+    if operationLocks[src] then return false, 'busy' end
+    operationLocks[src] = true
+    local packed = table.pack(pcall(function()
     local attempt = picking[src]
     picking[src] = nil
     if not attempt or attempt.token ~= token then return false end
@@ -404,12 +415,16 @@ w.callback.register('w_doorlock:pickFinish', function(src, token, given)
 
     local chance = success and (Config.Lockpick.breakOnSuccess or 0) or (Config.Lockpick.breakOnFail or 0)
     local broke = chance > 0 and math.random(1, 100) <= chance
-    if broke then Bridge.takeItem(src, pick) end
+    if broke and Bridge.takeItem(src, pick) ~= true then return false, false end
 
     if success then
         DoorSetState(door, door.state == 1 and 0 or 1, src, pick.name)
     end
     return success == true, broke
+    end))
+    operationLocks[src] = nil
+    if not packed[1] then print('[w_doorlock] Operation failed: ' .. tostring(packed[2]));return false, 'busy' end
+    return table.unpack(packed, 2, packed.n)
 end)
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -426,6 +441,7 @@ end)
 AddEventHandler('playerDropped', function()
     local src = source
     if not src then return end
+    operationLocks[src] = nil
     lastUse[src] = nil
     wrongCodes[src] = nil
     picking[src] = nil
