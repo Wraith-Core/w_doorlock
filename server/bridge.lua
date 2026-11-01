@@ -11,6 +11,9 @@
 --   Bridge.findItem(src, items)         the first entry of `items` the player carries, or nil
 --   Bridge.takeItem(src, entry)         removes one of it
 --   Bridge.isStaff(src)                 exports.w_lib:HasPermissionNode(src, Config.Permission)
+--   Bridge.knownGroups()                the core's job + gang names as a set, nil when it has no list
+--   Bridge.itemKnown(name)              does the bag define it (nil = no bag answers)
+--   Bridge.itemLabel(name)              the bag's label for it
 --
 -- ★ w.framework is loaded lazily (the first access yields while the library detects the core),
 --   so it is only ever touched from a thread or a handler, never at file load.
@@ -136,6 +139,47 @@ function Bridge.takeItem(src, entry)
         return exports.w_lib:InvRemoveItem(src, entry.name, 1, metaOf(entry))
     end)
     return ok and done == true
+end
+
+--- Every job and gang name the core defines, as a set; nil when the core gives no list to read
+--- (VORP: a job is any string the server writes), so nothing is refused on a guess.
+---@return table<string, true>|nil
+function Bridge.knownGroups()
+    local set = {}
+    local function add(list)
+        if type(list) ~= 'table' then return false end
+        for name in pairs(list) do
+            if type(name) == 'string' then set[name] = true end
+        end
+        return true
+    end
+    if GetResourceState('w_core') == 'started' then
+        local okJ, jobs = pcall(function() return exports.w_core:GetJobs() end)
+        local okG, gangs = pcall(function() return exports.w_core:GetGangs() end)
+        if okJ and okG and add(jobs) and add(gangs) and next(set) then return set end
+        return nil
+    end
+    if GetResourceState('rsg-core') == 'started' then
+        local ok, shared = pcall(function() return exports['rsg-core']:GetCoreObject().Shared end)
+        if ok and type(shared) == 'table' and add(shared.Jobs) and add(shared.Gangs) and next(set) then return set end
+    end
+    return nil
+end
+
+--- Does the bag define this item? true / false, nil when no bag answers.
+function Bridge.itemKnown(name)
+    local okName, bag = pcall(function() return exports.w_lib:InvName() end)
+    if not okName or not bag then return nil end
+    local ok, def = pcall(function() return exports.w_lib:InvItems(name) end)
+    if not ok then return nil end
+    return type(def) == 'table'
+end
+
+--- An item's name as the player reads it (the bag's label), else the id itself.
+function Bridge.itemLabel(name)
+    local ok, def = pcall(function() return exports.w_lib:InvItems(name) end)
+    if ok and type(def) == 'table' and type(def.label) == 'string' and def.label ~= '' then return def.label end
+    return tostring(name)
 end
 
 function Bridge.isStaff(src)

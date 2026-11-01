@@ -216,7 +216,13 @@ local function authorise(src, door, code)
         item = Bridge.findItem(src, door.items)
         granted = item ~= nil
     end
-    if not granted then return false end
+    -- ! Why not, without naming who may: the key he could carry is said, a job or gang or list of
+    --    people is not (a hideout's owner is not told to whoever tries its door).
+    if not granted then
+        if door.items then return false, 'need_item', Bridge.itemLabel(door.items[1].name or door.items[1]) end
+        if door.groups then return false, 'not_group' end
+        return false, 'not_allowed'
+    end
 
     if door.passcode then
         if code == nil then return 'passcode' end
@@ -265,13 +271,14 @@ w.callback.register('w_doorlock:use', function(src, id, state, code)
         if codeLocked(src) then return false, 'code_locked' end
     end
 
-    local granted, detail = authorise(src, door, code)
+    local granted, detail, label = authorise(src, door, code)
     if granted == 'passcode' then return 'passcode' end
     if not granted then
         if detail == 'wrong_code' then
             wrongCode(src)
             return false, 'wrong_code'
         end
+        if detail then return false, detail, label end
         return false, state == 0 and 'cannot_unlock' or 'cannot_lock'
     end
 

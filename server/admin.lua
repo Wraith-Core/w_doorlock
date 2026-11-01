@@ -192,6 +192,24 @@ local function takenBy(door, except)
     return nil
 end
 
+--- A job / gang or key item the server does not define: a typo there makes a door only the staff can
+--- open, so the save is refused with the name. Nothing is refused when the core or the bag gives no list.
+---@return string|nil why, string|nil name
+local function unknownName(door)
+    if door.groups then
+        local known = Bridge.knownGroups()
+        if known then
+            for name in pairs(door.groups) do
+                if not known[name] then return 'unknown_group', name end
+            end
+        end
+    end
+    for _, entry in ipairs(door.items or {}) do
+        if Bridge.itemKnown(entry.name) == false then return 'unknown_item', entry.name end
+    end
+    return nil
+end
+
 -- ════════════════════════════════════════════════════════════════════════════
 -- The board's calls
 -- ════════════════════════════════════════════════════════════════════════════
@@ -206,7 +224,7 @@ end
 
 --- A door saved: a new one (id nil, its place comes with the form) or an existing one (its place stays its own).
 --- `by` names who did it on the console line.
----@return boolean ok, table|string door or why
+---@return boolean ok, table|string door or why, string|nil name the unknown job / gang / item
 local function saveDoor(id, form, by)
     if not DoorsLoaded() then return false, 'not_ready' end
 
@@ -216,6 +234,9 @@ local function saveDoor(id, form, by)
 
     local door, why = clean(form, current)
     if not door then return false, why end
+
+    local unknown, name = unknownName(door)
+    if unknown then return false, unknown, name end
 
     if not current then
         if takenBy(door) then return false, 'taken' end
@@ -337,12 +358,15 @@ exports('SiteAdmin', function(op, args, by)
     local kind = type(op) == 'string' and SITE_OPS[op] or nil
     if not kind then return { ok = false, error = 'unknown_action' } end
     local who = ('%s (website)'):format(type(by) == 'string' and by ~= '' and by or 'staff')
-    local ok, done, res = pcall(SITE[op], type(args) == 'table' and args or {}, who)
+    local ok, done, res, detail = pcall(SITE[op], type(args) == 'table' and args or {}, who)
     if not ok then
         print(('^1[w_doorlock] website op %s failed: %s^0'):format(op, tostring(done)))
         return { ok = false, error = 'error' }
     end
-    if not done then return { ok = false, error = type(res) == 'string' and res or 'failed' } end
+    -- detail: the unknown job / gang / item name behind 'unknown_group' / 'unknown_item'
+    if not done then
+        return { ok = false, error = type(res) == 'string' and res or 'failed', detail = type(detail) == 'string' and detail or nil }
+    end
     return { ok = true, data = res, read = (kind == 'read') or nil }
 end)
 

@@ -96,18 +96,19 @@ end
 --- Lock or unlock a door the player stands at
 local function useDoor(d)
     local target = d.state == 1 and 0 or 1
-    local ok, reason = w.callback.await('w_doorlock:use', false, d.id, target)
+    -- detail: the key's name behind 'need_item'
+    local ok, reason, detail = w.callback.await('w_doorlock:use', false, d.id, target)
 
     if ok == 'passcode' then
         local code = WDoor.askCode()
         if not code then return false end   -- the player backed out: nothing to say
-        ok, reason = w.callback.await('w_doorlock:use', false, d.id, target, code)
+        ok, reason, detail = w.callback.await('w_doorlock:use', false, d.id, target, code)
     end
 
     if ok == true then
         keyTurn()
     elseif ok == false then
-        WDoor.notify('notify.' .. tostring(reason or 'cannot_unlock'), 'error')
+        WDoor.notify('notify.' .. tostring(reason or 'cannot_unlock'), 'error', detail)
     end
     return ok == true
 end

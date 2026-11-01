@@ -50,7 +50,12 @@
     "same_door": "Take the two different leaves of the door",
     "invalid": "The door's details are incomplete",
     "db": "The database refused the change",
-    "not_ready": "The doors are still loading"
+    "not_ready": "The doors are still loading",
+    "need_item": "You need %s for this door",
+    "not_group": "This door is for a job or gang you are not in",
+    "not_allowed": "Only those allowed can use this door",
+    "unknown_group": "There is no job or gang named \"%s\": fix the name",
+    "unknown_item": "There is no item named \"%s\": fix the name"
   },
   "note": {
     "kicker": "The door is locked",

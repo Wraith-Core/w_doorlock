@@ -11,6 +11,9 @@
 WDoor = WDoor or {}
 WDoor.selecting = false
 
+-- { key, name }: the job / gang / item a refused save named, for the page's notice that follows
+local refusedName = nil
+
 local function withZones(list)
     for _, d in ipairs(list) do d.zone = WDoor.zoneOf(d.coords) end
     return list
@@ -165,9 +168,9 @@ local function addDoor(form)
         form.hash, form.model, form.coords, form.heading = place.hash, place.model, place.coords, place.heading
     end
 
-    local ok, door = w.callback.await('w_doorlock:admin:save', false, nil, form)
+    local ok, door, name = w.callback.await('w_doorlock:admin:save', false, nil, form)
     if ok ~= true then
-        WDoor.notify('notify.' .. tostring(door or 'save_failed'), 'error')
+        WDoor.notify('notify.' .. tostring(door or 'save_failed'), 'error', name)
         return resumeBoard()
     end
 
@@ -196,8 +199,10 @@ RegisterNUICallback('dl:board:save', function(data, cb)
         return
     end
 
-    local ok, door = w.callback.await('w_doorlock:admin:save', false, id, form)
+    local ok, door, name = w.callback.await('w_doorlock:admin:save', false, id, form)
     if ok ~= true then
+        -- the page names the refusal by its key alone: the unknown name waits here for that notice
+        refusedName = { key = 'notify.' .. tostring(door or 'save_failed'), name = name }
         return cb({ ok = false, reason = door or 'save_failed' })
     end
     door.zone = WDoor.zoneOf(door.coords)
@@ -220,5 +225,9 @@ end)
 
 RegisterNUICallback('dl:board:notify', function(data, cb)
     cb({ ok = true })
-    if data and type(data.key) == 'string' then WDoor.notify(data.key, data.style or 'success') end
+    if data and type(data.key) == 'string' then
+        local held = refusedName
+        refusedName = nil
+        WDoor.notify(data.key, data.style or 'success', held and held.key == data.key and held.name or nil)
+    end
 end)
