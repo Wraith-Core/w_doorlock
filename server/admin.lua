@@ -108,6 +108,12 @@ local function clean(form, current)
     door.hideUi = flag(form.hideUi) or nil
     door.holdOpen = flag(form.holdOpen) or nil
 
+    -- 2.2.0: the w_store store the door is linked to (its id; 0 / '' / none = no link). Whether the
+    -- store exists is asked in saveDoor
+    local store = number(form.store, 0, 2147483647)
+    door.store = store and math.tointeger(store) or nil
+    if door.store and door.store < 1 then door.store = nil end
+
     local characters, seen = {}, {}
     for _, value in ipairs(type(form.characters) == 'table' and form.characters or {}) do
         local id = character(value)
@@ -238,6 +244,14 @@ local function saveDoor(id, form, by)
     local unknown, name = unknownName(door)
     if unknown then return false, unknown, name end
 
+    -- 2.2.0: a store link names a store w_store has. The link the door already had is kept as it is, so
+    -- the website's edits (which never send it) and a save while w_store is stopped neither drop nor refuse it
+    if door.store and not (current and current.store == door.store) then
+        local known = Bridge.storeKnown(door.store)
+        if known == nil then return false, 'store_offline' end
+        if not known then return false, 'unknown_store', tostring(door.store) end
+    end
+
     if not current then
         if takenBy(door) then return false, 'taken' end
         local newId = Db.insert(door.name, DoorEncode(door))
@@ -273,6 +287,12 @@ w.callback.register('w_doorlock:admin:doors', function(src)
     if not Bridge.isStaff(src) then return false end
     while not DoorsLoaded() do Wait(100) end
     return boardDoors()
+end)
+
+--- 2.2.0: the stores the board may link a door to (w_store's; empty when it is not running)
+w.callback.register('w_doorlock:admin:stores', function(src)
+    if not Bridge.isStaff(src) then return false end
+    return Bridge.stores()
 end)
 
 w.callback.register('w_doorlock:admin:save', function(src, id, form)

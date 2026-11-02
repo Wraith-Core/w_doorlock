@@ -52,6 +52,7 @@ export function emptyForm(): Form {
     groups: [],
     items: [],
     rounds: [],
+    store: '',
   };
 }
 
@@ -77,6 +78,7 @@ export function formOf(door: Door): Form {
         ? { name: item, metadata: '', remove: false }
         : { name: text(item.name), metadata: text(item.metadata), remove: !!item.remove }),
     rounds: (door.lockpickDifficulty ?? []).map(roundOf),
+    store: door.store ? text(door.store) : '',
   };
 }
 
@@ -120,6 +122,7 @@ export function payloadOf(form: Form) {
       r.kind === 'custom'
         ? { areaSize: parseNumber(r.areaSize) ?? 40, speedMultiplier: parseNumber(r.speedMultiplier) ?? 1 }
         : r.kind),
+    store: form.store ? Number(form.store) : 0,
   };
 }
 

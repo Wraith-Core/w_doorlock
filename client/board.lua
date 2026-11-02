@@ -25,9 +25,12 @@ local function openBoard(focus)
     if not ok or type(list) ~= 'table' then
         return WDoor.notify('notify.no_permission', 'error')
     end
+    -- 2.2.0: the stores a door may be linked to (none when w_store is not running)
+    local okStores, stores = pcall(w.callback.await, 'w_doorlock:admin:stores', false)
     WDoor.Nui.show('board', {
         action = 'dl:board',
         doors = withZones(list),
+        stores = okStores and type(stores) == 'table' and stores or {},
         sounds = Config.DoorSounds or {},
         defaultSound = Config.DefaultSound,
         focus = focus,

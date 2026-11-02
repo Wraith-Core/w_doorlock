@@ -6,8 +6,9 @@
 -- Who may use a door (ox_doorlock's rules, unchanged):
 --   1. Config.AdminBypass and the board's permission, or the ACE  w_doorlock.door.<name>
 --   2. a character listed on the door
---   3. a group (job or gang, from a grade up) - or, failing that, an item listed on the door
---   4. a door with a code asks for it: on its own when the door has no group or item, after them
+--   3. 2.2.0: the owner or the staff of the w_store store the door is linked to (server/bridge.lua)
+--   4. a group (job or gang, from a grade up) - or, failing that, an item listed on the door
+--   5. a door with a code asks for it: on its own when the door has no group or item, after them
 --      otherwise. A door with no rule at all opens for nobody but the staff and the ACE.
 --
 -- ★ A door's code never leaves the server: the client is told 'passcode' and asks the player.
@@ -52,6 +53,10 @@ local function prepare(id, data, name)
     data.state = (tonumber(data.state) or 1) ~= 0 and 1 or 0
     if not tonumber(data.maxDistance) or tonumber(data.maxDistance) <= 0 then data.maxDistance = 2.0 end
 
+    -- 2.2.0: a store link is a whole, positive store id, or none
+    local store = math.tointeger(tonumber(data.store))
+    data.store = store and store > 0 and store or nil
+
     -- ox_doorlock kept a bare item list once ({ 'key' }): every entry becomes { name, remove }
     if type(data.items) == 'table' then
         for i = 1, #data.items do
@@ -65,6 +70,7 @@ local FIELDS = {
     'auto', 'autolock', 'coords', 'characters', 'groups', 'heading', 'items', 'lockpick', 'hideUi',
     'holdOpen', 'lockSound', 'maxDistance', 'doorRate', 'model', 'hash', 'state', 'unlockSound',
     'passcode', 'lockpickDifficulty',
+    'store',    -- 2.2.0: the w_store store whose owner and staff may use the door (its id)
 }
 
 local function leaf(d)
@@ -208,6 +214,9 @@ local function authorise(src, door, code)
     if not Bridge.loaded(src) then return false end
 
     if door.characters and listed(door.characters, Bridge.charId(src)) then return true end
+
+    -- 2.2.0: the linked store's owner and staff, as w_store has them at this moment (a sale moves it)
+    if door.store and Bridge.storeStaff(src, door.store) then return true end
 
     local granted = door.passcode ~= nil
     local item

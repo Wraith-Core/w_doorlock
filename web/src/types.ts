@@ -40,7 +40,12 @@ export interface Door {
   groups?: Record<string, number> | string | string[];
   items?: (DoorItem | string)[];
   lockpickDifficulty?: Difficulty[];
+  /** 2.2.0: the w_store store whose owner and staff use the door */
+  store?: number;
 }
+
+/** 2.2.0: a w_store store the board may link a door to (its cashier's place, for the nearest first) */
+export interface StoreOption { id: number; name: string; owner?: string; at?: Vec3 }
 
 export type RoundKind = 'easy' | 'medium' | 'hard' | 'custom';
 export interface RoundForm { kind: RoundKind; areaSize: string; speedMultiplier: string }
@@ -64,15 +69,18 @@ export interface Form {
   groups: { name: string; grade: string }[];
   items: { name: string; metadata: string; remove: boolean }[];
   rounds: RoundForm[];
+  /** the linked store's id as text, '' = none */
+  store: string;
 }
 
-export type Tab = 'general' | 'characters' | 'groups' | 'items' | 'lockpick';
+export type Tab = 'general' | 'characters' | 'store' | 'groups' | 'items' | 'lockpick';
 
 export interface BoardOpen {
   n: number;
   doors: Door[];
   sounds: string[];
   defaultSound?: string;
+  stores: StoreOption[];
   focus?: number;
 }
 

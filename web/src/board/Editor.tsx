@@ -3,14 +3,15 @@
  *
  *   general     name, code, autolock, distance, speed, the two sounds, the six switches
  *   characters  the citizen ids that always open it
+ *   store       2.2.0: the w_store store whose owner and staff open it (the nearest stores first)
  *   groups      job / gang names and the lowest grade that opens it
  *   items       the items that open it (a key), their metadata type, used up or not
  *   lockpick    the rounds of the lock pick (none = the server's default)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-import { ROUND_KINDS, type Problem } from '../door';
+import { parseNumber, ROUND_KINDS, type Problem } from '../door';
 import { useI18n } from '../i18n';
-import type { Form, RoundKind, Tab } from '../types';
+import type { Form, RoundKind, StoreOption, Tab, Vec3 } from '../types';
 import { Add, Field, Remove, Stepper, Switch, type Nav } from './fields';
 
 interface Props {
@@ -20,13 +21,15 @@ interface Props {
   problems: Problem[];
   isNew: boolean;
   sounds: string[];
+  stores: StoreOption[];
+  at?: Vec3;
   hear: (sound: string) => void;
   nav: Nav;
 }
 
 const MAX_LINES = 32;
 
-export default function Editor({ tab, form, setForm, problems, isNew, sounds, hear, nav }: Props) {
+export default function Editor({ tab, form, setForm, problems, isNew, sounds, stores, at, hear, nav }: Props) {
   const { t } = useI18n();
   const error = (field: string) => {
     const p = problems.find((x) => x.field === field);
@@ -85,6 +88,37 @@ export default function Editor({ tab, form, setForm, problems, isNew, sounds, he
         </div>
         <Add id="add:c" nav={nav} label={t('board.add_character')} disabled={rows.length >= 64}
           onClick={() => { setForm((f) => ({ ...f, characters: [...f.characters, ''] })); nav.focusTo(`c:${rows.length}`); }} />
+      </>
+    );
+  }
+
+  if (tab === 'store') {
+    // the nearest stores to the door first (a new door has no place yet: by number)
+    const far = (s: StoreOption) => (at && s.at ? Math.hypot(s.at.x - at.x, s.at.y - at.y, s.at.z - at.z) : null);
+    const list = stores
+      .map((s) => ({ s, d: far(s) }))
+      .sort((a, b) => (a.d ?? Infinity) - (b.d ?? Infinity) || a.s.id - b.s.id);
+    const linked = stores.find((s) => String(s.id) === form.store);
+    const options = [
+      { value: '', label: t('board.store_none') },
+      // a link to a store the list does not hold (closed by the admins, or w_store stopped) stays choosable
+      ...(form.store && !linked ? [{ value: form.store, label: t('board.store_missing', form.store) }] : []),
+      ...list.map(({ s, d }) => ({
+        value: String(s.id),
+        label: [s.name, `#${s.id}`, d !== null ? t('board.metres', Math.round(d)) : ''].filter(Boolean).join(' · '),
+      })),
+    ];
+    const autolock = parseNumber(form.autolock) ?? 0;
+    return (
+      <>
+        <p className="dl-note-line">{t('board.store_note')}</p>
+        {stores.length === 0 && <p className="dl-note-line">{t('board.store_offline')}</p>}
+        <div className="dl-grid">
+          <Stepper id="f:store" nav={nav} wide label={t('board.f.store')} options={options}
+            value={form.store} onChange={(v) => set('store', v)} />
+        </div>
+        {linked && <p className="dl-note-line">{linked.owner ? t('board.store_owner', linked.owner) : t('board.store_gov')}</p>}
+        {form.store && autolock > 0 && <p className="dl-note-line">{t('board.store_autolock', autolock)}</p>}
       </>
     );
   }

@@ -55,7 +55,9 @@
     "not_group": "This door is for a job or gang you are not in",
     "not_allowed": "Only those allowed can use this door",
     "unknown_group": "There is no job or gang named \"%s\": fix the name",
-    "unknown_item": "There is no item named \"%s\": fix the name"
+    "unknown_item": "There is no item named \"%s\": fix the name",
+    "unknown_store": "There is no store #%s: pick a store from the list",
+    "store_offline": "The store system is not running, so the door could not be linked to the store"
   },
   "note": {
     "kicker": "The door is locked",
@@ -110,7 +112,8 @@
       "characters": "Characters",
       "groups": "Groups",
       "items": "Items",
-      "lockpick": "Lock pick"
+      "lockpick": "Lock pick",
+      "store": "Store"
     },
     "f": {
       "name": "Name",
@@ -134,7 +137,8 @@
       "metadata_hint": "any",
       "difficulty": "Round",
       "area": "Mark (°)",
-      "speed": "Speed"
+      "speed": "Speed",
+      "store": "Linked store"
     },
     "sw": {
       "locked": "Locked",
@@ -165,7 +169,15 @@
       "number": "A number",
       "range": "Out of range",
       "long": "Too long"
-    }
+    },
+    "store_note": "The linked store's owner and staff lock and unlock this door. When the store is sold or handed on, the right goes with it.",
+    "store_none": "No store",
+    "store_offline": "The store system is not running, so no stores are listed here.",
+    "store_missing": "Store #%s (not in the list now)",
+    "store_owner": "Owner now: %s",
+    "store_gov": "A government store with no owner: nobody opens the door through it until it is bought.",
+    "store_autolock": "Note: this door locks itself %s s after it is opened, so it locks behind the store owner once he walks out. Leave \"Locks again after\" empty on the General tab to keep it open.",
+    "metres": "%s m"
   },
   "zone": {
     "bayou_nwa": "Bayou Nwa",

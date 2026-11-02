@@ -14,6 +14,9 @@
 --   Bridge.knownGroups()                the core's job + gang names as a set, nil when it has no list
 --   Bridge.itemKnown(name)              does the bag define it (nil = no bag answers)
 --   Bridge.itemLabel(name)              the bag's label for it
+--   Bridge.storeStaff(src, storeId)     2.2.0: the w_store store's owner or one of its staff, right now
+--   Bridge.storeKnown(storeId)          2.2.0: does w_store have that store (nil = w_store not running)
+--   Bridge.stores()                     2.2.0: w_store's stores for the board's picker
 --
 -- ★ w.framework is loaded lazily (the first access yields while the library detects the core),
 --   so it is only ever touched from a thread or a handler, never at file load.
@@ -180,6 +183,52 @@ function Bridge.itemLabel(name)
     local ok, def = pcall(function() return exports.w_lib:InvItems(name) end)
     if ok and type(def) == 'table' and type(def.label) == 'string' and def.label ~= '' then return def.label end
     return tostring(name)
+end
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2.2.0 (the owner, 2026-11-02): a door linked on the board to a w_store store. w_store is asked on
+-- every use (its GetRole export), so the right follows the store the moment it is sold, handed on or
+-- taken by the central bank. A soft link: with w_store stopped it grants nothing and nothing fails.
+-- ════════════════════════════════════════════════════════════════════════════
+
+local function storesUp() return GetResourceState('w_store') == 'started' end
+
+--- The store's owner or one of its staff? (GetRole: 'owner' | 'employee' | nil - nil for everyone
+--- while the store is government-run, held by the central bank or waiting on a debt)
+function Bridge.storeStaff(src, storeId)
+    if not storesUp() then return false end
+    local ok, role = pcall(function() return exports.w_store:GetRole(src, storeId) end)
+    return ok and (role == 'owner' or role == 'employee')
+end
+
+--- Does w_store have this store? true / false, nil when w_store is not running (or does not answer)
+function Bridge.storeKnown(storeId)
+    if not storesUp() then return nil end
+    local ok, store = pcall(function() return exports.w_store:GetStore(storeId) end)
+    if not ok then return nil end
+    return type(store) == 'table'
+end
+
+--- The stores for the board's picker: { { id, name, owner, at } } (w_store's enabled ones), {} without w_store
+function Bridge.stores()
+    if not storesUp() then return {} end
+    local ok, list = pcall(function() return exports.w_store:GetStores() end)
+    if not ok or type(list) ~= 'table' then return {} end
+    local out = {}
+    for _, s in ipairs(list) do
+        local id = type(s) == 'table' and math.tointeger(tonumber(s.id))
+        if id then
+            local c = type(s.cashier) == 'table' and s.cashier or nil
+            local x, y, z = c and tonumber(c.x), c and tonumber(c.y), c and tonumber(c.z)
+            out[#out + 1] = {
+                id = id,
+                name = type(s.name) == 'string' and s.name or ('#' .. id),
+                owner = type(s.ownerName) == 'string' and s.ownerName ~= '' and s.ownerName or nil,
+                at = (x and y and z) and { x = x, y = y, z = z } or nil,
+            }
+        end
+    end
+    return out
 end
 
 function Bridge.isStaff(src)

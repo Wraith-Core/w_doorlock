@@ -4,7 +4,7 @@
  *
  *   masthead     the board's name · how many doors
  *   the list     every door - its state, its name, its number, its region - searched, in pages
- *   the door     its head, five tabs of settings (board/Editor.tsx)
+ *   the door     its head, six tabs of settings (board/Editor.tsx; 2.2.0: the linked store)
  *   actions      new door · close   |   save · copy · paste · teleport · delete · back
  *   the note     "delete this door?" on paper
  *
@@ -21,14 +21,14 @@ import { emptyForm, formOf, paste, payloadOf, settingsOf, validate, type Problem
 import { cls, Txt, useI18n } from '../i18n';
 import { pickNext, startPad, type Dir } from '../nav';
 import { cue, post, type Cue } from '../nui';
-import type { BoardOpen, BoardResume, Door, Form, Tab } from '../types';
+import type { BoardOpen, BoardResume, Door, Form, StoreOption, Tab } from '../types';
 import { GlyphNext, GlyphPrev, GlyphSearch, IconDoor, IconLock, IconUnlock } from '../ui/icons';
 import { ConfirmNote } from '../ui/Note';
 import Editor from './Editor';
 import type { Nav } from './fields';
 
 const PAGE = 10;
-const TABS: Tab[] = ['general', 'characters', 'groups', 'items', 'lockpick'];
+const TABS: Tab[] = ['general', 'characters', 'store', 'groups', 'items', 'lockpick'];
 
 type View = 'list' | 'door';
 interface Editing { id?: number; door?: Door; form: Form }
@@ -60,6 +60,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   const [doors, setDoors] = useState<Door[]>(message.doors);
   const [sounds, setSounds] = useState<string[]>(message.sounds);
   const [defaultSound, setDefaultSound] = useState(message.defaultSound ?? '');
+  const [stores, setStores] = useState<StoreOption[]>(message.stores);
   const [view, setView] = useState<View>('list');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -189,6 +190,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     setDoors(message.doors);
     setSounds(message.sounds);
     setDefaultSound(message.defaultSound ?? '');
+    setStores(message.stores);
     setQuery('');
     setPage(0);
     setConfirm(false);
@@ -461,6 +463,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
 
   const counts: Partial<Record<Tab, number>> = editing ? {
     characters: editing.form.characters.filter((c) => c.trim()).length,
+    store: editing.form.store ? 1 : 0,
     groups: editing.form.groups.filter((g) => g.name.trim()).length,
     items: editing.form.items.filter((i) => i.name.trim()).length,
     lockpick: editing.form.rounds.length,
@@ -604,6 +607,8 @@ export default function Board({ open, message, resume }: { open: boolean; messag
                       problems={problems}
                       isNew={!editing.id}
                       sounds={sounds}
+                      stores={stores}
+                      at={editing.door?.coords}
                       hear={(s) => playDoorSound(s || defaultSound)}
                       nav={nav}
                     />
