@@ -89,7 +89,7 @@ ul { list-style: none; }
 
 .dl-panel {
   position: absolute;
-  inset-inline-start: 5.4rem;
+  inset-inline-start: calc(5.4rem + var(--ws-gutter)); /* ui-scale: inside the centred 16:9 frame on an ultrawide */
   top: max(2rem, calc((100vh - 50rem) / 2));
   width: 44rem;
   height: 50rem;

@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+// Every px in the CSS follows the screen (720p .. 8K, ultrawide by height): ui-scale.cjs.
+import uiScale from './ui-scale.cjs';
 
 // Strip crossorigin from the injected tags -- inside RedM's CEF a module request can
 // fail in CORS mode over nui://, which shows up as a black screen with no error.
@@ -14,6 +16,7 @@ const stripCrossorigin = () => ({
 export default defineConfig({
   plugins: [react(), stripCrossorigin()],
   base: './',
+  css: { postcss: { plugins: [uiScale()] } },
   // dev only: the mock reads the resource's own locales/*.json one folder up
   server: { fs: { allow: ['..'] } },
   build: {
