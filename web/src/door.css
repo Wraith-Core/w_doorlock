@@ -18,16 +18,22 @@
    ════════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --ink: #0A0A0A;
-  --ink-2: #111111;
-  --ink-3: #191919;
-  --ink-4: #222222;
+  --ink: #0B0A0A;
+  --ink-2: #151313;
+  --ink-3: #1C1919;
+  --ink-4: #242020;
   --paper: #F2F2F2;
   --paper-dim: #B4B4B4;
   --paper-faint: #7A7A7A;
   --rule: rgba(242, 242, 242, 0.16);
   --rule-2: rgba(242, 242, 242, 0.32);
-  --red: #CB0101;
+  --red: #D0161B;
+  /* 2026-11-05 (owner): the site's look - the chosen tab / switch is the red mark, ok states soft green */
+  --mark: var(--w-mark, #D0161B);
+  --mark-lit: var(--w-mark-lit, #E01A1F);
+  --mark-deep: var(--w-mark-deep, #8F0B0E);
+  --mark-ink: var(--w-mark-ink, #F2F2F2);
+  --green: var(--w-green, #9FC79A);
   --note: #E9E9E9;
   --note-ink: #111111;
   --note-dim: #555555;
@@ -81,8 +87,8 @@ ul { list-style: none; }
   inset: 0;
   pointer-events: none;
   background: linear-gradient(90deg,
-    rgba(10, 10, 10, 0.82) 0%, rgba(10, 10, 10, 0.64) 28%, rgba(10, 10, 10, 0.32) 48%,
-    rgba(10, 10, 10, 0.08) 62%, rgba(10, 10, 10, 0) 72%);
+    rgba(11, 10, 10, 0.82) 0%, rgba(11, 10, 10, 0.64) 28%, rgba(11, 10, 10, 0.32) 48%,
+    rgba(11, 10, 10, 0.08) 62%, rgba(11, 10, 10, 0) 72%);
   animation: dl-fade 220ms var(--ease) both;
 }
 [dir='rtl'] .dl-scrim { transform: scaleX(-1); }
@@ -319,7 +325,7 @@ ul { list-style: none; }
   overflow: hidden;
 }
 .dl:not(.is-rtl) .dl-row-meta { font-variant-caps: all-small-caps; letter-spacing: 0.08em; font-size: 0.92rem; }
-.dl-row.is-here .dl-row-meta { color: rgba(17, 17, 17, 0.62); }
+.dl-row.is-here .dl-row-meta { color: rgba(21, 19, 19, 0.62); }
 .dl-row-end {
   flex: none;
   font: 500 0.85rem/1 var(--f-label);
@@ -417,10 +423,14 @@ ul { list-style: none; }
   opacity: 0;
   transition: opacity 120ms var(--ease);
 }
-.dl-tab.is-active { color: var(--paper); }
-.dl-tab.is-active::after { opacity: 1; }
+.dl-tab.is-active { color: var(--mark-ink); }
+.dl-tab.is-active::before { opacity: 1; background: var(--mark); }
+.dl-tab.is-active::after { opacity: 1; background: var(--mark); }
 .dl-tab.is-here { color: var(--ink); }
 .dl-tab.is-here::before { opacity: 1; }
+.dl-tab.is-active.is-here { color: var(--mark-ink); }
+.dl-tab.is-active.is-here::before { background: var(--mark-lit); }
+.dl-tab.is-active:active::before { background: var(--mark-deep); }
 .dl-tab-num { font-family: 'EB Garamond', Georgia, serif; font-variant-numeric: lining-nums tabular-nums; direction: ltr; unicode-bidi: isolate; opacity: 0.7; font-size: 0.9em; }
 
 .dl-page-wrap { flex: 1; }
@@ -505,7 +515,7 @@ ul { list-style: none; }
   letter-spacing: 0.08em;
   color: var(--paper-dim);
 }
-.dl-switch[data-on='true'] { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.dl-switch[data-on='true'] { background: var(--mark); border-color: var(--mark); color: var(--mark-ink); }
 .dl-switch-row.is-here .dl-switch { border-color: var(--paper); box-shadow: inset 0 -0.14rem 0 var(--red); }
 
 /* A choice among a few (◀ value ▶): the game's own selection arrows */
@@ -720,7 +730,7 @@ ul { list-style: none; }
   align-items: center;
   justify-content: center;
   pointer-events: auto;
-  background: radial-gradient(55% 55% at 50% 50%, rgba(10, 10, 10, 0.5), rgba(10, 10, 10, 0) 100%);
+  background: radial-gradient(55% 55% at 50% 50%, rgba(11, 10, 10, 0.5), rgba(11, 10, 10, 0) 100%);
   animation: dl-fade 180ms var(--ease) both;
 }
 .dl-pick-wrap { width: 23rem; height: 30rem; }
@@ -752,7 +762,7 @@ ul { list-style: none; }
 }
 .dl-rounds { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: auto; padding-top: 1rem; }
 .dl-round { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: rgba(242, 242, 242, 0.3); transition: width 220ms var(--ease), background-color 220ms var(--ease); }
-.dl-round.is-done { background: var(--paper); }
+.dl-round.is-done { background: var(--green); }
 .dl-round.is-now { width: 1.8rem; border-radius: 0.3rem; background: var(--paper-dim); }
 .dl-pick-say { min-height: 1.4rem; margin-top: 0.7rem; font: italic 400 1rem/1.4 var(--f-serif); color: var(--paper-dim); }
 .is-rtl .dl-pick-say { font-style: normal; }
