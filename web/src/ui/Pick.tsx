@@ -1,5 +1,6 @@
 /* ════════════════════════════════════════════════════════════════════════════
- * The lock pick - a skill check on a torn card: one round per difficulty the door sets.
+ * The lock pick - a skill check on a paper note (wave 3, as w_heists draws its minigames): one round per
+ * difficulty the door sets.
  *
  * The needle (the red mark) sweeps the dial once; E (or Space, Enter, a click, the pad's A) while it
  * crosses the paper mark wins the round. A press off the mark, or a full sweep with no press, loses.
@@ -15,7 +16,6 @@ import { cls, useI18n } from '../i18n';
 import { startPad } from '../nav';
 import { cue, post } from '../nui';
 import type { PickRound } from '../types';
-import { IconPick } from './icons';
 
 const R = 42;
 const BASE_SWEEP = 2300;   // ms for one full turn at speed 1
@@ -155,44 +155,34 @@ export default function Pick({ rounds }: { rounds: PickRound[] }) {
 
   return (
     <div className={cls('dl-pick', rtl && 'is-rtl')} dir={rtl ? 'rtl' : 'ltr'} lang={lang} onMouseDown={press}>
-      <section className="dl-wrap dl-pick-wrap is-focus dl-in">
-        <div className="dl-card">
-          <div className="dl-card-body">
-            <div className="dl-card-head" style={{ width: '100%' }}>
-              <div>
-                <div className="dl-kicker">{t('pick.kicker')}</div>
-                <h2 className="dl-h">{t('pick.title')}</h2>
-              </div>
-              <IconPick />
-            </div>
+      <section className={cls('dl-pick-plate', phase === 'miss' && 'is-miss')}>
+        <div className="dl-pick-kicker">{t('pick.kicker')}</div>
+        <h2 className="dl-pick-title">{t('pick.title')}</h2>
 
-            <div className={cls('dl-dial', phase === 'hit' || phase === 'won' ? 'is-hit' : '', phase === 'miss' && 'is-miss')} dir="ltr">
-              <svg viewBox="0 0 100 100">
-                <circle className="dl-dial-track" cx="50" cy="50" r={R} />
-                <g className="dl-dial-ticks">
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const a = point(i * 30, R + 3);
-                    const b = point(i * 30, R + 6);
-                    return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-                  })}
-                </g>
-                <path className="dl-dial-zone" d={arc(zone.from, zone.size)} />
-                <line ref={needle} className="dl-dial-needle" x1="50" y1="50" x2="50" y2={50 - R - 2} />
-                <circle className="dl-dial-hub" cx="50" cy="50" r="12" />
-              </svg>
-              <span className="dl-dial-key">J</span>
-            </div>
-
-            <p className="dl-pick-say">{say}</p>
-
-            <div className="dl-rounds" aria-hidden="true">
-              {list.map((_, i) => (
-                <span key={i} className={cls('dl-round', i < round || phase === 'won' ? 'is-done' : '', i === round && phase !== 'won' && 'is-now')} />
-              ))}
-            </div>
-          </div>
+        <div className={cls('dl-dial', phase === 'hit' || phase === 'won' ? 'is-hit' : '', phase === 'miss' && 'is-miss')} dir="ltr">
+          <svg viewBox="0 0 100 100">
+            <circle className="dl-dial-track" cx="50" cy="50" r={R} />
+            <g className="dl-dial-ticks">
+              {Array.from({ length: 12 }, (_, i) => {
+                const a = point(i * 30, R + 3);
+                const b = point(i * 30, R + 6);
+                return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+              })}
+            </g>
+            <path className="dl-dial-zone" d={arc(zone.from, zone.size)} />
+            <line ref={needle} className="dl-dial-needle" x1="50" y1="50" x2="50" y2={50 - R - 2} />
+            <circle className="dl-dial-hub" cx="50" cy="50" r="12" />
+          </svg>
+          <span className="dl-dial-key">J</span>
         </div>
-        <i className="dl-tick" aria-hidden="true" />
+
+        <p className="dl-pick-say">{say}</p>
+
+        <div className="dl-rounds" aria-hidden="true">
+          {list.map((_, i) => (
+            <span key={i} className={cls('dl-round', i < round || phase === 'won' ? 'is-done' : '', i === round && phase !== 'won' && 'is-now')} />
+          ))}
+        </div>
       </section>
     </div>
   );

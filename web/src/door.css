@@ -721,7 +721,9 @@ ul { list-style: none; }
 .dl-choice.is-here { color: var(--ink); }
 .dl-choice.is-here::after { opacity: 1; }
 
-/* ══════════════════ The lock pick ══════════════════ */
+/* ══════════════════ The lock pick ══════════════════
+   Wave 3 (2.3.0): a paper sheet in the middle, as w_heists draws its minigames (ink on paper, the grain, the
+   torn edge); the needle is the one red, the mark to hit is ink, a round is a pin (ink = done, the red tick = now). */
 .dl-pick {
   position: fixed;
   inset: 0;
@@ -730,20 +732,43 @@ ul { list-style: none; }
   align-items: center;
   justify-content: center;
   pointer-events: auto;
-  background: radial-gradient(55% 55% at 50% 50%, rgba(11, 10, 10, 0.5), rgba(11, 10, 10, 0) 100%);
-  animation: dl-fade 180ms var(--ease) both;
+  background: radial-gradient(55% 60% at 50% 50%, rgba(11, 10, 10, 0.62), rgba(11, 10, 10, 0.12) 100%);
+  animation: dl-fade 160ms var(--ease) both;
 }
-.dl-pick-wrap { width: 23rem; height: 30rem; }
-.dl-pick .dl-card-body { align-items: center; text-align: center; padding: 1.6rem 1.8rem 1.4rem; }
-.dl-pick .dl-h { font-size: 1.7rem; }
-.dl-dial { position: relative; width: 15rem; height: 15rem; margin: 1.3rem auto 0; }
+.dl-pick-plate {
+  position: relative;
+  width: 25rem;
+  padding: 1.6rem 2.2rem 1.35rem;
+  background: var(--note);
+  color: var(--note-ink);
+  text-align: center;
+  -webkit-mask-box-image: var(--tex-tear) 64 fill / var(--edge) round;
+  box-shadow: inset 0 0 2.6rem rgba(0, 0, 0, 0.28);
+  filter: drop-shadow(0 0.9rem 1.5rem rgba(0, 0, 0, 0.6));
+  animation: dl-rise 220ms var(--ease) both;
+}
+.dl-pick-plate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--tex-grain);
+  background-size: 256px 256px;
+  opacity: 0.45;
+}
+.dl-pick-plate > * { position: relative; }
+.dl-pick-kicker { font: 500 0.92rem/1.2 var(--f-label); color: var(--note-dim); font-variant-caps: all-small-caps; letter-spacing: 0.1em; }
+.dl-pick-title { margin-top: 0.2rem; font: 600 1.9rem/1.2 var(--f-display); color: var(--note-ink); }
+.dl-pick-title::after { content: ''; display: block; width: 4.5rem; height: 0.15rem; margin: 0.55rem auto 0; background: var(--note-ink); opacity: 0.7; }
+.dl-pick-plate.is-miss .dl-pick-title::after { background: var(--red); opacity: 1; }
+.dl-dial { position: relative; width: 15rem; height: 15rem; margin: 1.1rem auto 0; }
 .dl-dial svg { width: 100%; height: 100%; overflow: visible; }
-.dl-dial-track { fill: none; stroke: var(--rule-2); stroke-width: 1.2; }
-.dl-dial-ticks { stroke: var(--rule); stroke-width: 1; }
-.dl-dial-zone { fill: none; stroke: var(--paper); stroke-width: 7; stroke-linecap: butt; transition: stroke 120ms var(--ease), opacity 160ms var(--ease); }
-.dl-dial.is-hit .dl-dial-zone { stroke: #FFFFFF; }
+.dl-dial-track { fill: rgba(17, 17, 17, 0.05); stroke: var(--note-ink); stroke-width: 1.2; }
+.dl-dial-ticks { stroke: var(--note-dim); stroke-width: 1; }
+.dl-dial-zone { fill: none; stroke: var(--note-ink); stroke-width: 7; stroke-linecap: butt; opacity: 0.88; transition: opacity 160ms var(--ease), stroke-width 120ms var(--ease); }
+.dl-dial.is-hit .dl-dial-zone { opacity: 1; stroke-width: 9; }
 .dl-dial-needle { stroke: var(--red); stroke-width: 3; stroke-linecap: round; }
-.dl-dial-hub { fill: var(--ink-2); stroke: var(--rule-2); stroke-width: 1; }
+.dl-dial-hub { fill: var(--note); stroke: var(--note-ink); stroke-width: 1.2; }
 .dl-dial.is-miss .dl-dial-zone { opacity: 0.25; }
 .dl-dial-key {
   position: absolute;
@@ -755,17 +780,14 @@ ul { list-style: none; }
   min-width: 2.6rem;
   height: 2.6rem;
   padding: 0 0.6rem;
-  border: 1px solid rgba(242, 242, 242, 0.45);
-  font: 600 1.3rem/1 'EB Garamond', Georgia, serif;
-  color: var(--paper);
-  background: var(--ink-2);
+  font: 600 1.45rem/1 'EB Garamond', Georgia, serif;
+  color: var(--note-ink);
 }
-.dl-rounds { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: auto; padding-top: 1rem; }
-.dl-round { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: rgba(242, 242, 242, 0.3); transition: width 220ms var(--ease), background-color 220ms var(--ease); }
-.dl-round.is-done { background: var(--green); }
-.dl-round.is-now { width: 1.8rem; border-radius: 0.3rem; background: var(--paper-dim); }
-.dl-pick-say { min-height: 1.4rem; margin-top: 0.7rem; font: italic 400 1rem/1.4 var(--f-serif); color: var(--paper-dim); }
-.is-rtl .dl-pick-say { font-style: normal; }
+.dl-rounds { display: flex; align-items: center; justify-content: center; gap: 0.55rem; margin-top: 0.9rem; }
+.dl-round { display: block; width: 0.85rem; height: 1.55rem; border: 1.5px solid var(--note-ink); transition: background-color 150ms var(--ease); }
+.dl-round.is-done { background: var(--note-ink); }
+.dl-round.is-now { box-shadow: 0 0.3rem 0 -0.1rem var(--red); }
+.dl-pick-say { min-height: 2.8rem; margin-top: 0.7rem; font: 400 1.04rem/1.4 var(--f-serif); color: var(--note-dim); }
 
 /* ══════════════════ The glyphs ══════════════════ */
 .dl-glyph { display: block; flex: none; }
@@ -783,7 +805,9 @@ ul { list-style: none; }
 .is-rtl .dl-note-kicker { letter-spacing: 0; font-variant-caps: normal; }
 .is-rtl .dl-h { font-weight: 400; font-size: 1.8rem; line-height: 1.3; letter-spacing: 0; }
 .is-rtl .dl-head .dl-h { font-size: 1.7rem; }
-.is-rtl .dl-pick .dl-h { font-size: 1.6rem; }
+.is-rtl .dl-pick-kicker { letter-spacing: 0; font-variant-caps: normal; font-weight: 700; }
+.is-rtl .dl-pick-title { font-weight: 400; font-size: 1.8rem; line-height: 1.5; }
+.is-rtl .dl-pick-say { font-size: 1.1rem; line-height: 1.6; }
 .dl-ar { letter-spacing: 0; word-spacing: normal; font-variant-caps: normal; text-transform: none; font-style: normal; }
 .dl-h .dl-ar, .dl-row-name .dl-ar, .dl-mark .dl-ar, .dl-note-q .dl-ar { font-weight: 400; }
 .dl-mark .dl-ar { font-family: 'Lalezar', 'Tajawal', serif; font-size: 1.1em; }
