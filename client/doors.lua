@@ -8,8 +8,8 @@
 --   WDoor.Closest    the closest door within its own interact distance
 --   WDoor.EntityDoor [entity] = door id
 --
--- ★ RDR3 door states: 0 unlocked, 1 locked, 4 the reset the door sequence starts from. A door
---   is registered by pushing 4 and then its real state.
+-- ★ RDR3 door states: 0 unlocked, 1 locked (unbreakable). The server's state is
+--   reapplied when a nearby door streams in or another resource changes the native state.
 -- ════════════════════════════════════════════════════════════════════════════
 WDoor = WDoor or {}
 WDoor.Doors = {}
@@ -24,15 +24,22 @@ local Doors = WDoor.Doors
 -- client that does not expose it.
 local ADD_DOOR_TO_SYSTEM_NEW     <const> = 0xD99229FE93B46286
 local DOOR_SYSTEM_SET_DOOR_STATE <const> = 0x6BAB9442830C7F53
+local DOOR_SYSTEM_GET_DOOR_STATE <const> = 0x160AA1B32F6139B8
 local DOOR_SYSTEM_FORCE_SHUT     <const> = 0x276AAF0F1C7F2494
-local STATE_RESET <const> = 4
 
 local function addToSystem(hash) Citizen.InvokeNative(ADD_DOOR_TO_SYSTEM_NEW, hash, true, true, false, 0, 0, false) end
 local function setDoorState(hash, state) Citizen.InvokeNative(DOOR_SYSTEM_SET_DOOR_STATE, hash, state) end
+local function getDoorState(hash) return Citizen.InvokeNative(DOOR_SYSTEM_GET_DOOR_STATE, hash, Citizen.ResultAsInteger()) end
 local function forceShut(hash) Citizen.InvokeNative(DOOR_SYSTEM_FORCE_SHUT, hash, false) end
 
 local function holdOpen(hash, on)
     if DoorSystemSetHoldOpen then pcall(DoorSystemSetHoldOpen, hash, on) end
+end
+
+local function entityExists(entity)
+    if not entity or entity == 0 then return false end
+    local exists = DoesEntityExist(entity)
+    return exists == true or exists == 1
 end
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -93,16 +100,24 @@ end
 -- The door system
 -- ════════════════════════════════════════════════════════════════════════════
 
+-- 2.3.1: one physical application for initial load, state changes and streamed leaves.
+local function applyState(door, leaf)
+    setDoorState(leaf.hash, door.state)
+    if door.holdOpen then holdOpen(leaf.hash, door.state == 0) end
+    if door.state == 1 then
+        local closed = IsDoorClosed(leaf.hash)
+        if closed ~= true and closed ~= 1 then forceShut(leaf.hash) end
+    end
+end
+
 local function register(door)
     for _, leaf in ipairs(leaves(door)) do
         if leaf.hash then
             addToSystem(leaf.hash)
-            setDoorState(leaf.hash, STATE_RESET)
-            setDoorState(leaf.hash, door.state)
+            applyState(door, leaf)
             if door.doorRate or not door.auto then
                 DoorSystemSetAutomaticRate(leaf.hash, (door.doorRate or 10.0) + 0.0)
             end
-            if door.holdOpen then holdOpen(leaf.hash, door.state == 0) end
         end
     end
 end
@@ -111,7 +126,6 @@ end
 local function release(door)
     for _, leaf in ipairs(leaves(door)) do
         if leaf.hash then
-            setDoorState(leaf.hash, STATE_RESET)
             setDoorState(leaf.hash, 0)
         end
         if leaf.entity then WDoor.EntityDoor[leaf.entity] = nil end
@@ -130,7 +144,6 @@ local function openFixedDoors()
         hash = toHash(hash)
         if hash and not taken[hash] then
             addToSystem(hash)
-            setDoorState(hash, STATE_RESET)
             setDoorState(hash, 0)
         end
     end
@@ -166,10 +179,7 @@ RegisterNetEvent('w_doorlock:client:setState', function(id, state)
 
     for _, leaf in ipairs(leaves(door)) do
         if leaf.hash then
-            setDoorState(leaf.hash, door.state)
-            if door.holdOpen then holdOpen(leaf.hash, door.state == 0) end
-            -- a door locked while it stands open is shut, so the lock is heard on a closed door
-            if door.state == 1 and not IsDoorClosed(leaf.hash) then forceShut(leaf.hash) end
+            applyState(door, leaf)
         end
     end
 
@@ -257,13 +267,28 @@ CreateThread(function()
 
             if door.distance < 80 then
                 for _, leaf in ipairs(leaves(door)) do
-                    if leaf.hash and (not leaf.entity or not DoesEntityExist(leaf.entity)) then
-                        local entity = GetEntityByDoorhash(leaf.hash, 0)
-                        if entity and entity ~= 0 then
-                            leaf.entity = entity
-                            WDoor.EntityDoor[entity] = door.id
-                            -- a single door is reached at its middle, not at its hinge
-                            if not door.doors then door.coords = centreOf(entity) end
+                    if leaf.hash then
+                        local streamed = false
+                        if not entityExists(leaf.entity) then
+                            if leaf.entity then
+                                WDoor.EntityDoor[leaf.entity] = nil
+                                leaf.entity = nil
+                            end
+                            local entity = GetEntityByDoorhash(leaf.hash, 0)
+                            if entityExists(entity) then
+                                leaf.entity = entity
+                                streamed = true
+                                WDoor.EntityDoor[entity] = door.id
+                                -- a single door is reached at its middle, not at its hinge
+                                if not door.doors then door.coords = centreOf(entity) end
+                            end
+                        end
+                        -- The banking startup can unlock a managed bank door after our load;
+                        -- world streaming can also recreate its leaf. Reconcile nearby doors
+                        -- every 500 ms, writing only on arrival or a real state mismatch.
+                        if leaf.entity and (streamed or getDoorState(leaf.hash) ~= door.state) then
+                            addToSystem(leaf.hash)
+                            applyState(door, leaf)
                         end
                     end
                 end
