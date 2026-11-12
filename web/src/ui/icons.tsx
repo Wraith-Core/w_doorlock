@@ -115,3 +115,13 @@ export function GlyphHear() {
     </svg>
   );
 }
+
+/** the place line's pin (the builders' notebook) */
+export function GlyphPin() {
+  return (
+    <svg className="dl-glyph dl-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M12 21c-3.6-4.3-5.6-7.4-5.6-10.1a5.6 5.6 0 0 1 11.2 0c0 2.7-2 5.8-5.6 10.1z" />
+      <circle cx="12" cy="10.6" r="1.9" />
+    </svg>
+  );
+}

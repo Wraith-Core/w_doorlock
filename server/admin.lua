@@ -295,6 +295,22 @@ w.callback.register('w_doorlock:admin:stores', function(src)
     return Bridge.stores()
 end)
 
+--- The notebook board (2026-11-12): the names the board shows instead of keys (jobs / gangs with their grades, items with their labels)
+w.callback.register('w_doorlock:admin:names', function(src)
+    if not Bridge.isStaff(src) then return false end
+    return { groups = Bridge.groupList(), items = Bridge.itemList() }
+end)
+
+--- The board's world mode (2026-11-12): a staff member locks / unlocks a door he looks at (J on its pin), as the site does
+w.callback.register('w_doorlock:admin:lock', function(src, id, locked)
+    if not Bridge.isStaff(src) then return false, 'no_permission' end
+    local door = Doors[tonumber(id)]
+    if not door then return false, 'missing' end
+    if type(locked) ~= 'boolean' then return false, 'invalid' end
+    DoorSetState(door, locked and 1 or 0, src)
+    return true, door.state
+end)
+
 w.callback.register('w_doorlock:admin:save', function(src, id, form)
     if not Bridge.isStaff(src) then return false, 'no_permission' end
     return saveDoor(id, form, GetPlayerName(src) or src)

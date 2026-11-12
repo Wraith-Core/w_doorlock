@@ -1,15 +1,18 @@
 /* ════════════════════════════════════════════════════════════════════════════
- * w_doorlock · board/Board.tsx - the staff's board of doors (/doorlock), on the pause menu's torn
- * cards:
+ * w_doorlock · board/Board.tsx - the staff's board of doors (/doorlock), the builders' notebook column
+ * (2026-11-12): docked at the physical right in both languages, the world seen beside it.
  *
- *   masthead     the board's name · how many doors
- *   the list     every door - its state, its name, its number, its region - searched, in pages
- *   the door     its head, six tabs of settings (board/Editor.tsx; 2.2.0: the linked store)
- *   actions      new door · close   |   save · copy · paste · teleport · delete · back
+ *   masthead     the board's name · how many doors · how many locked
+ *   the list     every door in words - its name, its state and who opens it, its place and distance -
+ *                the nearest first, searched, in pages
+ *   the door     its head (name, state, the door in one sentence), one scroll of sections
+ *                (board/Editor.tsx), the readiness line (missing + fix it)
+ *   actions      new door · close   |   save · copy · paste · go there · delete · back
+ *   keys         the keys that work here; TAB = the world mode (client/board.lua, w_lib lib.worldEdit)
  *   the note     "delete this door?" on paper
  *
  * The arrows, WASD, the pad and the mouse move between the stops spatially (nav.ts); Enter types
- * into a field or presses what the cursor is on; Q / E (LB / RB) turn the page or the tab; Escape /
+ * into a field or presses what the cursor is on; Q / E (LB / RB) turn the list page; TAB the world; Escape /
  * Backspace goes back. The 'Select' / 'Back' buttons are the library's prompt group, drawn by Lua.
  *
  * ★ The board stays mounted while it is hidden: a new door is chosen in the world with the board
@@ -21,17 +24,17 @@ import { emptyForm, formOf, paste, payloadOf, settingsOf, validate, type Problem
 import { cls, Txt, useI18n } from '../i18n';
 import { pickNext, startPad, type Dir } from '../nav';
 import { cue, post, type Cue } from '../nui';
-import type { BoardOpen, BoardResume, Door, Form, StoreOption, Tab } from '../types';
-import { GlyphNext, GlyphPrev, GlyphSearch, IconDoor, IconLock, IconUnlock } from '../ui/icons';
+import type { BoardOpen, BoardResume, Door, Form, Fresh, Names, StoreOption } from '../types';
+import { GlyphNext, GlyphPin, GlyphPrev, GlyphSearch, IconDoor, IconLock, IconUnlock } from '../ui/icons';
 import { ConfirmNote } from '../ui/Note';
+import { isAdvanced, readiness, sentence } from '../words';
 import Editor from './Editor';
 import type { Nav } from './fields';
 
-const PAGE = 10;
-const TABS: Tab[] = ['general', 'characters', 'store', 'groups', 'items', 'lockpick'];
+const PAGE = 6;
 
 type View = 'list' | 'door';
-interface Editing { id?: number; door?: Door; form: Form }
+interface Editing { id?: number; door?: Door; form: Form; fresh?: Fresh }
 type Settings = ReturnType<typeof settingsOf>;
 
 interface SaveAnswer { ok: boolean; door?: Door; reason?: string; choosing?: boolean }
@@ -61,11 +64,12 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   const [sounds, setSounds] = useState<string[]>(message.sounds);
   const [defaultSound, setDefaultSound] = useState(message.defaultSound ?? '');
   const [stores, setStores] = useState<StoreOption[]>(message.stores);
+  const [names, setNames] = useState<Names>(message.names);
+  const [advanced, setAdvanced] = useState(false);
   const [view, setView] = useState<View>('list');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [tab, setTab] = useState<Tab>('general');
   const [problems, setProblems] = useState<Problem[]>([]);
   const [copied, setCopied] = useState<Settings | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -86,12 +90,14 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   confirmRef.current = confirm;
 
   /* ── What the list shows ─────────────────────────────────────────────────── */
+  // the nearest doors first (the distance Lua measured when the board opened), then by number
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return doors;
     const id = q.replace(/^#/, '');
-    return doors.filter((d) =>
-      d.name.toLowerCase().includes(q) || (d.zone ?? '').toLowerCase().includes(q) || String(d.id) === id);
+    const list = !q ? doors.slice() : doors.filter((d) =>
+      d.name.toLowerCase().includes(q) || (d.label ?? '').toLowerCase().includes(q)
+      || (d.zone ?? '').toLowerCase().includes(q) || (d.where ?? '').toLowerCase().includes(q) || String(d.id) === id);
+    return list.sort((a, b) => (a.meters ?? Infinity) - (b.meters ?? Infinity) || a.id - b.id);
   }, [doors, query]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const pageNow = Math.min(page, pages - 1);
@@ -165,18 +171,21 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   useLayoutEffect(() => {
     if (!open || navEls.current.has(focusRef.current)) return;
     const firstRow = shown[0] ? `row:${shown[0].id}` : null;
-    const fallback = confirm ? 'no' : view === 'door' ? 'tab:general' : (firstRow ?? 'search');
+    const fallback = confirm ? 'no' : view === 'door' ? 'f:name' : (firstRow ?? 'search');
     setCursor(fallback);
   });
 
   /* ── Opening, resuming ───────────────────────────────────────────────────── */
-  const openDoor = useCallback((door?: Door) => {
-    setEditing(door ? { id: door.id, door, form: formOf(door) } : { form: emptyForm() });
-    setTab('general');
+  const openDoor = useCallback((door?: Door, fresh?: Fresh) => {
+    const form = door ? formOf(door) : emptyForm();
+    if (!door && fresh) form.double = fresh.double;
+    setEditing(door ? { id: door.id, door, form } : { form, fresh: fresh && !fresh.blank ? fresh : undefined });
+    setAdvanced(false);
     setProblems([]);
     setConfirm(false);
     setView('door');
-    setCursor(door ? 'tab:general' : 'f:name');
+    setCursor('f:name');
+    void post('dl:board:current', { id: door?.id ?? null });
   }, [setCursor]);
 
   const showRow = useCallback((list: Door[], id: number) => {
@@ -191,6 +200,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     setSounds(message.sounds);
     setDefaultSound(message.defaultSound ?? '');
     setStores(message.stores);
+    setNames(message.names);
     setQuery('');
     setPage(0);
     setConfirm(false);
@@ -201,6 +211,8 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     const target = message.focus != null ? message.doors.find((d) => d.id === message.focus) : undefined;
     if (target) {
       openDoor(target);
+    } else if (message.fresh) {
+      openDoor(undefined, message.fresh);
     } else {
       setView('list');
       setEditing(null);
@@ -240,8 +252,15 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     setView('list');
     setEditing(null);
     setProblems([]);
+    void post('dl:board:current', { id: null });
     if (id) showRow(doors, id); else setCursor('act:new');
   }, [editing, doors, showRow, setCursor]);
+
+  /* fix it: the cursor to the field (the advanced fold opens first when it holds it) */
+  const goFix = useCallback((field: string) => {
+    if (isAdvanced(field)) setAdvanced(true);
+    window.setTimeout(() => setCursor(field), 0);
+  }, [setCursor]);
 
   const save = async () => {
     if (!editing || saving) return;
@@ -249,8 +268,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     setProblems(found);
     if (found.length) {
       cue('locked');
-      setTab(found[0].tab);
-      setCursor(found[0].field);
+      goFix(found[0].field);
       return;
     }
     cue('select');
@@ -324,22 +342,19 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     setCursor('search');
   };
 
-  const selectTab = useCallback((next: Tab, sound: Cue = 'select') => {
-    setTab(next);
-    cue(sound);
-    setCursor(`tab:${next}`);
-  }, [setCursor]);
-
   const turn = useCallback((delta: number) => {
-    if (view === 'list') {
-      if (pages < 2) return;
-      setPage((p) => (Math.min(p, pages - 1) + delta + pages) % pages);
-      cue(delta > 0 ? 'navDown' : 'navUp');
-      return;
-    }
-    const i = TABS.indexOf(tab);
-    selectTab(TABS[(i + delta + TABS.length) % TABS.length], delta > 0 ? 'navDown' : 'navUp');
-  }, [view, pages, tab, selectTab]);
+    if (view !== 'list' || pages < 2) return;
+    setPage((p) => (Math.min(p, pages - 1) + delta + pages) % pages);
+    cue(delta > 0 ? 'navDown' : 'navUp');
+  }, [view, pages]);
+
+  /* TAB: the board steps aside, the staff member walks the world (client/board.lua) */
+  const toWorld = useCallback(() => {
+    if (!message.world || confirmRef.current) return;
+    if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+    cue('select');
+    void post('dl:board:world');
+  }, [message.world]);
 
   const back = useCallback(() => {
     if (confirmRef.current) { closeConfirm(); return; }
@@ -369,6 +384,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
         // a field holds the keyboard: only the keys that leave it are ours
         switch (e.key) {
           case 'Escape': target.blur(); break;
+          case 'Tab': target.blur(); toWorld(); break;
           case 'Enter':
             target.blur();
             if (focusRef.current === 'search') {
@@ -392,6 +408,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
         case 'Escape': case 'Backspace': back(); break;
         case 'q': case 'Q': turn(rtl ? 1 : -1); break;
         case 'e': case 'E': turn(rtl ? -1 : 1); break;
+        case 'Tab': toWorld(); break;
         case 'PageUp': turn(-1); break;
         case 'PageDown': turn(1); break;
         default: return;
@@ -400,7 +417,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, move, side, activate, back, turn, rtl, focusTo]);
+  }, [open, move, side, activate, back, turn, rtl, focusTo, toWorld]);
 
   /* The pad */
   const padRef = useRef<(a: string) => void>(() => {});
@@ -440,7 +457,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   const here = (id: string) => focus === id;
   const nav: Nav = { reg, hover, here, regStep, focusTo: (id) => setCursor(id) };
 
-  const inActions = focus.startsWith('act:');
+  const inActions = focus.startsWith('act:') || focus === 'fix';
   const inList = view === 'list' && !inActions;
   const inPage = view === 'door' && !inActions && !confirm;
   const Tick = () => <i className="dl-tick" aria-hidden="true" />;
@@ -450,7 +467,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
     { id: 'act:close', label: t('board.close'), run: () => close() },
   ];
   const doorActions = editing ? [
-    { id: 'act:save', label: editing.id ? t('board.save') : t('board.choose'), run: () => void save(), primary: true, disabled: saving },
+    { id: 'act:save', label: editing.id || editing.fresh ? t('board.save') : t('board.choose'), run: () => void save(), primary: true, disabled: saving },
     { id: 'act:copy', label: t('board.copy'), run: copy },
     { id: 'act:paste', label: t('board.paste'), run: pasteSettings, disabled: !copied },
     ...(editing.id ? [
@@ -461,27 +478,30 @@ export default function Board({ open, message, resume }: { open: boolean; messag
   ] : [];
   const actions = view === 'list' ? listActions : doorActions;
 
-  const counts: Partial<Record<Tab, number>> = editing ? {
-    characters: editing.form.characters.filter((c) => c.trim()).length,
-    store: editing.form.store ? 1 : 0,
-    groups: editing.form.groups.filter((g) => g.name.trim()).length,
-    items: editing.form.items.filter((i) => i.name.trim()).length,
-    lockpick: editing.form.rounds.length,
-  } : {};
-
-  const doorName = editing ? (editing.form.name.trim() || editing.door?.name || t('board.unnamed')) : '';
+  const doorName = editing
+    ? (editing.form.name.trim() && editing.form.name.trim() !== editing.door?.name ? editing.form.name.trim()
+      : editing.door?.label || editing.door?.name || t('board.unnamed'))
+    : '';
   const doorKicker = editing
-    ? [editing.id ? t('board.door_n', editing.id) : t('board.new_door'), editing.door?.zone,
+    ? [editing.id ? t('board.door_n', editing.id) : t('board.new_door'),
        editing.form.double ? t('board.double') : t('board.single')].filter(Boolean).join(' · ')
     : '';
+  const doorWhere = editing ? (editing.door?.where || editing.door?.zone || editing.fresh?.where || '') : '';
+  const ready = editing ? readiness(editing.form, names, !editing.id, t, problems) : null;
+
+  const keys = [
+    { k: '↑↓', l: t('board.keys.move') },
+    { k: 'Enter', l: t('board.keys.select') },
+    ...(view === 'list' && pages > 1 ? [{ k: 'Q E', l: t('board.keys.page') }] : []),
+    ...(message.world ? [{ k: 'TAB', l: t('board.keys.world') }] : []),
+    { k: 'Esc', l: view === 'door' ? t('board.keys.back') : t('board.keys.close') },
+  ];
 
   return (
-    <div className={cls('dl', rtl && 'is-rtl', !open && 'is-hidden')} dir={rtl ? 'rtl' : 'ltr'} lang={lang}>
+    <div className={cls('dl dl-nb', rtl && 'is-rtl', !open && 'is-hidden')} dir={rtl ? 'rtl' : 'ltr'} lang={lang}>
       <div className="dl-scrim" aria-hidden="true" />
 
       <main className={cls('dl-panel', confirm && 'is-dim')} key={message.n}>
-        <i className="dl-strip" aria-hidden="true" />
-
         {/* ── The masthead ── */}
         <header className="dl-mast dl-in" style={{ ['--i' as string]: 0 }}>
           <span className="dl-mark"><Txt s={t('board.mark')} /></span>
@@ -532,14 +552,14 @@ export default function Board({ open, message, resume }: { open: boolean; messag
                         >
                           {d.state === 1 ? <IconLock /> : <IconUnlock />}
                           <div className="dl-row-main">
-                            <span className="dl-row-name"><Txt s={d.name} /></span>
-                            <span className="dl-row-meta">
-                              <span className="dl-num">#{d.id}</span>
-                              {d.zone ? <span>· <Txt s={d.zone} /></span> : null}
-                              {d.doors ? <span>· {t('board.double')}</span> : null}
-                            </span>
+                            <div className="dl-row-top">
+                              <span className="dl-row-name"><Txt s={d.label || d.name} /></span>
+                              {(d.where || d.zone) && (
+                                <span className="dl-row-meta"><GlyphPin /><Txt s={d.where || d.zone} /></span>
+                              )}
+                            </div>
+                            <span className="dl-row-say"><Txt s={sentence(formOf(d), names, lang, t)} /></span>
                           </div>
-                          <span className="dl-row-end">{d.state === 1 ? t('board.locked') : t('board.unlocked')}</span>
                         </li>
                       );
                     })}
@@ -559,56 +579,46 @@ export default function Board({ open, message, resume }: { open: boolean; messag
           </section>
         ) : editing && (
           <>
-            {/* ── The door's head ── */}
+            {/* ── The door's head: its name, its state, the door in one sentence ── */}
             <section className="dl-wrap dl-head-wrap dl-in" style={{ ['--i' as string]: 1 }}>
               <div className="dl-card dl-head">
                 <div className="dl-card-body">
                   <div className="dl-card-head">
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div className="dl-kicker"><Txt s={doorKicker} /></div>
                       <h2 className="dl-h" title={doorName}><Txt s={doorName} /></h2>
+                      <div className="dl-tags">
+                        <span className={cls('dl-tag', editing.form.state && 'is-solid')}>{editing.form.state ? t('board.locked') : t('board.unlocked')}</span>
+                        {ready?.block ? <span className="dl-tag is-red">{t('board.ready.short_missing')}</span>
+                          : <span className="dl-tag is-ok">{t('board.ready.ok')}</span>}
+                      </div>
                     </div>
                     <IconDoor />
                   </div>
+                  <p className="dl-say"><Txt s={sentence(editing.form, names, lang, t)} /></p>
+                  {doorWhere && <p className="dl-where"><GlyphPin /><Txt s={doorWhere} /></p>}
                 </div>
               </div>
             </section>
 
-            {/* ── The tabs and their page ── */}
+            {/* ── One scroll of sections ── */}
             <section className={cls('dl-wrap dl-page-wrap dl-in', inPage && 'is-focus')} style={{ ['--i' as string]: 2 }}>
               <div className="dl-card">
                 <div className="dl-card-body">
-                  <div className="dl-tabs" role="tablist">
-                    {TABS.map((tb) => {
-                      const id = `tab:${tb}`;
-                      const count = counts[tb];
-                      return (
-                        <button
-                          key={tb}
-                          type="button"
-                          role="tab"
-                          aria-selected={tab === tb}
-                          ref={reg(id)}
-                          className={cls('dl-tab', tab === tb && 'is-active', here(id) && 'is-here')}
-                          onMouseEnter={hover(id)}
-                          onClick={() => selectTab(tb)}
-                        >
-                          {t(`board.tab.${tb}`)}
-                          {count ? <span className="dl-tab-num">{count}</span> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className={cls('dl-page', tab !== 'general' && 'is-scroll')}>
+                  <div className="dl-page is-scroll">
                     <Editor
-                      tab={tab}
                       form={editing.form}
                       setForm={setForm}
                       problems={problems}
                       isNew={!editing.id}
+                      door={editing.door}
+                      fresh={editing.fresh}
                       sounds={sounds}
                       stores={stores}
                       at={editing.door?.coords}
+                      names={names}
+                      advanced={advanced}
+                      toggleAdvanced={() => setAdvanced((a) => !a)}
                       hear={(s) => playDoorSound(s || defaultSound)}
                       nav={nav}
                     />
@@ -620,22 +630,43 @@ export default function Board({ open, message, resume }: { open: boolean; messag
           </>
         )}
 
-        {/* ── The actions ── */}
+        {/* ── The readiness line, the actions, the keys ── */}
         <nav className={cls('dl-wrap dl-actions-wrap dl-in', inActions && !confirm && 'is-focus')} style={{ ['--i' as string]: 3 }}>
-          <div className={cls('dl-card dl-actions', actions.length > 4 && 'is-dense')}>
-            {actions.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                ref={reg(a.id)}
-                className={cls('dl-act', here(a.id) && 'is-here', a.primary && 'is-primary')}
-                disabled={'disabled' in a && a.disabled === true && a.id !== 'act:paste'}
-                onMouseEnter={hover(a.id)}
-                onClick={a.run}
-              >
-                {a.label}
-              </button>
-            ))}
+          <div className="dl-card dl-foot">
+            <div className="dl-card-body">
+              {ready && (ready.block || ready.warn) && (
+                <div className={cls('dl-ready', ready.block && 'is-bad')}>
+                  <i className="dl-ready-dot" aria-hidden="true" />
+                  <span><Txt s={ready.block ? t('board.ready.missing', ready.block.text) : ready.warn} /></span>
+                  {ready.block && (
+                    <button type="button" ref={reg('fix')} className={cls('dl-act dl-fix', here('fix') && 'is-here')}
+                      onMouseEnter={hover('fix')} onClick={() => { cue('select'); goFix(ready.block!.field); }}>
+                      {t('board.ready.fix')}
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className={cls('dl-actions', actions.length > 4 && 'is-dense')}>
+                {actions.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    ref={reg(a.id)}
+                    className={cls('dl-act', here(a.id) && 'is-here', a.primary && 'is-primary')}
+                    disabled={'disabled' in a && a.disabled === true && a.id !== 'act:paste'}
+                    onMouseEnter={hover(a.id)}
+                    onClick={a.run}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+              <div className="dl-keys">
+                {keys.map((k) => (
+                  <span key={k.k}><span className="dl-key">{k.k}</span>{k.l}</span>
+                ))}
+              </div>
+            </div>
           </div>
         </nav>
 
@@ -643,7 +674,7 @@ export default function Board({ open, message, resume }: { open: boolean; messag
         {confirm && editing && (
           <ConfirmNote
             question={t('board.delete_q')}
-            sub={editing.door?.name}
+            sub={editing.door?.label || editing.door?.name}
             here={focus}
             reg={reg}
             hover={hover}

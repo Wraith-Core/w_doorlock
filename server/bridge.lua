@@ -17,6 +17,7 @@
 --   Bridge.storeStaff(src, storeId)     2.2.0: the w_store store's owner or one of its staff, right now
 --   Bridge.storeKnown(storeId)          2.2.0: does w_store have that store (nil = w_store not running)
 --   Bridge.stores()                     2.2.0: w_store's stores for the board's picker
+--   Bridge.groupList() / itemList()     2026-11-12: jobs, gangs, grades and items with their names (the board's pickers)
 --
 -- ★ w.framework is loaded lazily (the first access yields while the library detects the core),
 --   so it is only ever touched from a thread or a handler, never at file load.
@@ -167,6 +168,63 @@ function Bridge.knownGroups()
         if ok and type(shared) == 'table' and add(shared.Jobs) and add(shared.Gangs) and next(set) then return set end
     end
     return nil
+end
+
+--- The notebook board (2026-11-12): every job and gang with its names and grades, for the board's pickers - the staff
+--- choose «الشرطة · ضابط وما فوق» instead of typing police / 1. Empty when the core gives no list.
+---@return { name: string, kind: 'job'|'gang', en: string, ar: string, grades: { grade: integer, en: string, ar: string }[] }[]
+function Bridge.groupList()
+    local out = {}
+    local function add(list, kind)
+        if type(list) ~= 'table' then return end
+        for name, def in pairs(list) do
+            if type(name) == 'string' and type(def) == 'table' then
+                local grades = {}
+                for g, gd in pairs(type(def.grades) == 'table' and def.grades or {}) do
+                    local n = tonumber(g)
+                    if n and type(gd) == 'table' then
+                        grades[#grades + 1] = { grade = math.floor(n), en = tostring(gd.name or gd.label or n),
+                            ar = tostring(gd.name_ar or gd.name or gd.label or n) }
+                    end
+                end
+                table.sort(grades, function(a, b) return a.grade < b.grade end)
+                out[#out + 1] = { name = name, kind = kind, en = tostring(def.label or name),
+                    ar = tostring(def.label_ar or def.label or name), grades = grades }
+            end
+        end
+    end
+    if GetResourceState('w_core') == 'started' then
+        local okJ, jobs = pcall(function() return exports.w_core:GetJobs() end)
+        local okG, gangs = pcall(function() return exports.w_core:GetGangs() end)
+        if okJ then add(jobs, 'job') end
+        if okG then add(gangs, 'gang') end
+    elseif GetResourceState('rsg-core') == 'started' then
+        local ok, shared = pcall(function() return exports['rsg-core']:GetCoreObject().Shared end)
+        if ok and type(shared) == 'table' then add(shared.Jobs, 'job') add(shared.Gangs, 'gang') end
+    end
+    table.sort(out, function(a, b) if a.kind ~= b.kind then return a.kind == 'job' end return a.name < b.name end)
+    return out
+end
+
+--- The notebook board (2026-11-12): every item the bag defines with its label ({ name, label }), for the board's key picker. Empty when the
+--- bag gives no list (the typed name is then checked on save as before).
+function Bridge.itemList()
+    local out = {}
+    local all
+    if GetResourceState('w_inventory') == 'started' then
+        local ok, list = pcall(function() return exports.w_inventory:Items() end)
+        all = ok and type(list) == 'table' and list or nil
+    elseif GetResourceState('rsg-core') == 'started' then
+        local ok, list = pcall(function() return exports['rsg-core']:GetCoreObject().Shared.Items end)
+        all = ok and type(list) == 'table' and list or nil
+    end
+    for name, def in pairs(all or {}) do
+        if type(name) == 'string' and type(def) == 'table' and #out < 3000 then
+            out[#out + 1] = { name = name, label = type(def.label) == 'string' and def.label ~= '' and def.label or name }
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
 end
 
 --- Does the bag define this item? true / false, nil when no bag answers.

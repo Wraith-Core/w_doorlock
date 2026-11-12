@@ -39,7 +39,8 @@ client_scripts {
     'client/doors.lua',     -- the doors in the game's door system, their sounds, who is near
     'client/walkup.lua',    -- the walk-up prompt: the library's w.prompt.at, or our own on w_lib 3.x
     'client/interact.lua',  -- the prompt on each door, the code, the lock pick, the client exports
-    'client/board.lua',     -- the staff's board, and choosing a new door in the world
+    'client/words.lua',     -- a door in words: its name read from a system id, its place and distance
+    'client/board.lua',     -- the staff's board, and choosing a new door in the world (TAB: the world mode)
 }
 
 server_scripts {

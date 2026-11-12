@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Board from './board/Board';
 import { I18nContext, translate, type I18n } from './i18n';
 import { post } from './nui';
-import type { BoardOpen, BoardResume, Door, Lang, PickRound, StoreOption, Strings } from './types';
+import type { BoardOpen, BoardResume, Door, Fresh, Lang, Names, PickRound, StoreOption, Strings } from './types';
 import { CodeNote } from './ui/Note';
 import Pick from './ui/Pick';
 
@@ -54,6 +54,12 @@ export default function App() {
             defaultSound: typeof d.defaultSound === 'string' ? d.defaultSound : '',
             stores: Array.isArray(d.stores) ? (d.stores as StoreOption[]) : [],
             focus: typeof d.focus === 'number' ? d.focus : undefined,
+            names: d.names && typeof d.names === 'object'
+              ? { groups: Array.isArray((d.names as Names).groups) ? (d.names as Names).groups : [],
+                  items: Array.isArray((d.names as Names).items) ? (d.names as Names).items : [] }
+              : { groups: [], items: [] },
+            world: d.world === true,
+            fresh: d.fresh && typeof d.fresh === 'object' ? (d.fresh as Fresh) : undefined,
           }));
           setSurface('board');
           return;

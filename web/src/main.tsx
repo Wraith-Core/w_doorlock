@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './door.css';
+import './notebook.css';
 
 /* * The fonts and the textures are injected from here and not from CSS: their path must be relative
    to the build page (nui://w_doorlock/web/build/) and Vite writes absolute CSS paths that break under

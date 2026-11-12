@@ -42,7 +42,19 @@ export interface Door {
   lockpickDifficulty?: Difficulty[];
   /** 2.2.0: the w_store store whose owner and staff use the door */
   store?: number;
+  /** the notebook board (2026-11-12, set by Lua on the way to the page): the name in words, the place and distance */
+  label?: string;
+  where?: string;
+  meters?: number;
 }
+
+/** The names the board shows instead of keys (w_doorlock:admin:names) */
+export interface GroupName { name: string; kind: 'job' | 'gang'; en: string; ar: string; grades: { grade: number; en: string; ar: string }[] }
+export interface ItemName { name: string; label: string }
+export interface Names { groups: GroupName[]; items: ItemName[] }
+
+/** A new door whose leaves were taken in the world (J on a door) */
+export interface Fresh { double: boolean; where?: string; /** a new door with nothing taken yet (J «باب جديد من اللوحة») */ blank?: boolean }
 
 /** 2.2.0: a w_store store the board may link a door to (its cashier's place, for the nearest first) */
 export interface StoreOption { id: number; name: string; owner?: string; at?: Vec3 }
@@ -82,6 +94,10 @@ export interface BoardOpen {
   defaultSound?: string;
   stores: StoreOption[];
   focus?: number;
+  names: Names;
+  /** w_lib has the world mode (TAB) */
+  world: boolean;
+  fresh?: Fresh;
 }
 
 export interface BoardResume {

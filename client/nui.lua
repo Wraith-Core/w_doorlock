@@ -47,7 +47,7 @@ end
 -- ════════════════════════════════════════════════════════════════════════════
 
 local HINTS = {
-    board    = { { 'RETURN', 'hint.select' }, { 'BACK', 'hint.back' } },
+    -- board: the keys row at the bottom of the notebook column (the page draws it, 2026-11-12)
     passcode = { { 'RETURN', 'hint.confirm' }, { 'BACK', 'hint.cancel' } },
     pick     = { { 'J', 'hint.pick' }, { 'BACK', 'hint.give_up' } },
 }
