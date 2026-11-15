@@ -39,7 +39,7 @@ Config.Prompt = {
     key      = 'J',
     pickKey  = 'G',
     hold     = false,
-    position = 'center-left',
+    position = 'bottom-right', -- owner 2026-11-15: the usual corner, like every walk-up prompt
 }
 
 --- The key-turn the character plays when a door opens or locks for him (false = none)
