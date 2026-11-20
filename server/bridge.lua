@@ -157,16 +157,11 @@ function Bridge.knownGroups()
         end
         return true
     end
-    if GetResourceState('w_core') == 'started' then
-        local okJ, jobs = pcall(function() return exports.w_core:GetJobs() end)
-        local okG, gangs = pcall(function() return exports.w_core:GetGangs() end)
-        if okJ and okG and add(jobs) and add(gangs) and next(set) then return set end
-        return nil
-    end
-    if GetResourceState('rsg-core') == 'started' then
-        local ok, shared = pcall(function() return exports['rsg-core']:GetCoreObject().Shared end)
-        if ok and type(shared) == 'table' and add(shared.Jobs) and add(shared.Gangs) and next(set) then return set end
-    end
+    local okJ, jobs = pcall(function() return exports.w_lib:FwGetSharedJobs() end)
+    local okG, gangs = pcall(function() return exports.w_lib:FwGetSharedGangs() end)
+    if okJ then add(jobs) end
+    if okG then add(gangs) end
+    if next(set) then return set end
     return nil
 end
 
@@ -193,15 +188,10 @@ function Bridge.groupList()
             end
         end
     end
-    if GetResourceState('w_core') == 'started' then
-        local okJ, jobs = pcall(function() return exports.w_core:GetJobs() end)
-        local okG, gangs = pcall(function() return exports.w_core:GetGangs() end)
-        if okJ then add(jobs, 'job') end
-        if okG then add(gangs, 'gang') end
-    elseif GetResourceState('rsg-core') == 'started' then
-        local ok, shared = pcall(function() return exports['rsg-core']:GetCoreObject().Shared end)
-        if ok and type(shared) == 'table' then add(shared.Jobs, 'job') add(shared.Gangs, 'gang') end
-    end
+    local okJ, jobs = pcall(function() return exports.w_lib:FwGetSharedJobs() end)
+    local okG, gangs = pcall(function() return exports.w_lib:FwGetSharedGangs() end)
+    if okJ then add(jobs, 'job') end
+    if okG then add(gangs, 'gang') end
     table.sort(out, function(a, b) if a.kind ~= b.kind then return a.kind == 'job' end return a.name < b.name end)
     return out
 end
@@ -210,13 +200,11 @@ end
 --- bag gives no list (the typed name is then checked on save as before).
 function Bridge.itemList()
     local out = {}
-    local all
-    if GetResourceState('w_inventory') == 'started' then
-        local ok, list = pcall(function() return exports.w_inventory:Items() end)
-        all = ok and type(list) == 'table' and list or nil
-    elseif GetResourceState('rsg-core') == 'started' then
-        local ok, list = pcall(function() return exports['rsg-core']:GetCoreObject().Shared.Items end)
-        all = ok and type(list) == 'table' and list or nil
+    local ok, list = pcall(function() return exports.w_lib:InvItems() end)
+    local all = (ok and type(list) == 'table') and list or nil
+    if not all or next(all) == nil then
+        local okS, shared = pcall(function() return exports.w_lib:FwGetSharedItems() end)
+        all = (okS and type(shared) == 'table') and shared or nil
     end
     for name, def in pairs(all or {}) do
         if type(name) == 'string' and type(def) == 'table' and #out < 3000 then

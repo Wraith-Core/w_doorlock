@@ -34,16 +34,12 @@ class Notebook(unittest.TestCase):
     def test_names_come_from_w_core_with_their_grades(self):
         s = self.s
         s.run("""
-            STATES = STATES or {}
-            STATES['w_core'] = 'started'
-            exports.w_core = {
-              GetJobs = function() return {
+            exports.w_lib.FwGetSharedJobs = function() return {
                 police = { label = 'Sheriff', label_ar = 'الشريف', grades = { ['0'] = { name = 'Deputy', name_ar = 'نائب' },
                                                                               ['2'] = { name = 'Sergeant', name_ar = 'رقيب' } } },
                 doctor = { label = 'Doctor', grades = {} },
-              } end,
-              GetGangs = function() return { odriscoll = { label = "O'Driscolls", label_ar = 'أودريسكول', grades = {} } } end,
-            }
+            } end
+            exports.w_lib.FwGetSharedGangs = function() return { odriscoll = { label = "O'Driscolls", label_ar = 'أودريسكول', grades = {} } } end
         """)
         got = s.call('w_doorlock:admin:names', STAFF)
         groups = got['groups']

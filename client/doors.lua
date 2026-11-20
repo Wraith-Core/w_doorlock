@@ -246,11 +246,9 @@ end
 
 CreateThread(load)
 
-for _, event in ipairs({ 'WCore:Client:OnPlayerLoaded', 'RSGCore:Client:OnPlayerLoaded', 'QBCore:Client:OnPlayerLoaded', 'vorp:SelectedCharacter' }) do
-    RegisterNetEvent(event, function()
-        SetTimeout(1000, reapply)
-    end)
-end
+exports.w_lib:FwOnCharacterLoaded(function()
+    SetTimeout(1000, reapply)
+end)
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Who is near: distances, entities, the closest door (every 500 ms)

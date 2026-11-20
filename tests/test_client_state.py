@@ -43,6 +43,7 @@ function SendNUIMessage() end
 function SetTimeout(_,fn) fn() end
 function locale(key) return key end
 w={callback={await=function() return LIST end}, print={warn=function() error('load failed') end}}
+exports=setmetatable({w_lib={FwOnCharacterLoaded=function(_,fn) EVENTS['FwOnCharacterLoaded']=fn end}}, {__call=function() end})
 '''
 
 
