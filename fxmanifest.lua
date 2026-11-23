@@ -5,7 +5,7 @@ lua54 'yes'
 
 name 'w_doorlock'
 author 'Wraith Studio'
-version '2.3.5'
+version '2.3.6'
 license 'GPL-3.0-or-later'
 description "Red River Doorlock -- every door locked, opened, picked and edited in the game (/doorlock), on the pause menu's torn-paper board. Built on w_lib; a port of ox_doorlock (Overextended, GPL-3.0)"
 
